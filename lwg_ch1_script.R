@@ -886,8 +886,7 @@ bbs_habitat_all<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/habAll.csv"
 # Filter only for grids containing wet grasslands 
 
 bbs_grass_all<-bbs_habitat_all%>%
-  filter(PLevel1=="C" | SLevel1=="C")
-bbs_grass_all<-bbs_grass_all%>%filter(PLevel2==6 | SLevel2==6)%>%
+  filter(PLevel1=="C" & PLevel2 == 6 | SLevel1=="C" & SLevel2 == 6)%>%
   select(year, Gridref)
 bbs_grass_all<-unique(bbs_grass_all)
 
@@ -989,7 +988,7 @@ bbs_trend_creator<-function(species_name, model_type=3, autocorrelation=TRUE, ov
   
   bbs_model <- trim(max_count ~ Gridref + year, data=try_checker, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
 }
-# function that creates a wide dataframe for imputed and observed respectively
+# function that creates a wide dataframe for imputed and observed obs respectively
 
 imputed<-function(results) {
   
