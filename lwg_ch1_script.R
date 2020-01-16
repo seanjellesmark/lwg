@@ -541,25 +541,64 @@ bbs_trend_creator<-function(species_name, model_type=3, autocorrelation=TRUE, ov
   
   
   bbs_model <- trim(max_count ~ Gridref + year, data=try_checker, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
-  index_bbs<-index(bbs_model, "both")
+}
+# function that creates a wide dataframe for imputed and observed respectively
+
+imputed<-function(results) {
+  
+  results%>%
+    select(site, time, imputed)%>%
+    pivot_wider(names_from = "time",
+                values_from = "imputed")
 }
 
+observed<-function(results){
+  results%>%
+    select(site, time, observed)%>%
+    pivot_wider(names_from = "time",
+                values_from = "observed")
+}
+# create trim, index, plot, result, imputed and observed data frame
 
-
-lapwing_bbs<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
+lapwing_trim<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
+lapwing_bbs<-index(lapwing_trim, "both")
 plot(lapwing_bbs, main="Lapwing - Model 3")
+lapwing_results<-results(lapwing_trim)
+lapwing_imputed<-imputed(lapwing_results)
+lapwing_observed<-observed(lapwing_results)
 
-curlew_bbs<-bbs_trend_creator(species_name="CU", autocorrelation=FALSE, overdispersion=FALSE, model_type=3)
+
+curlew_trim<-bbs_trend_creator(species_name="CU", autocorrelation=FALSE, overdispersion=FALSE, model_type=3)
+curlew_bbs<-index(curlew_trim, "both")
 plot(curlew_bbs, main="Curlew - Model 3")
+curlew_results<-results(curlew_trim)
+curlew_imputed<-imputed(curlew_results)
+curlew_observed<-observed(curlew_results)
 
-redshank_bbs<-bbs_trend_creator(species_name="RK", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+
+redshank_trim<-bbs_trend_creator(species_name="RK", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+redshank_bbs<-index(redshank_trim, "both")
 plot(redshank_bbs, main="Redshank - Model 3")
+redshank_results<-results(redshank_trim)
+redshank_imputed<-imputed(redshank_results)
+redshank_observed<-observed(redshank_results)
 
-snipe_bbs<-bbs_trend_creator(species_name="SN", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+
+snipe_trim<-bbs_trend_creator(species_name="SN", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+snipe_bbs<-index(snipe_trim, "both")
 plot(snipe_bbs, main="Snipe - Model 3")
+snipe_results<-results(snipe_trim)
+snipe_imputed<-imputed(snipe_results)
+snipe_observed<-observed(snipe_results)
 
-yellow_wagtail_bbs<-bbs_trend_creator(species_name="YW", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+
+yellow_wagtail_trim<-bbs_trend_creator(species_name="YW", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+yellow_wagtail_bbs<-index(yellow_wagtail_trim, "both")
 plot(yellow_wagtail_bbs, main="Yellow Wagtail - Model 3")
+yellow_wagtail_results<-results(yellow_wagtail_trim)
+yellow_wagtail_imputed<-imputed(yellow_wagtail_results)
+yellow_wagtail_observed<-observed(yellow_wagtail_results)
+
 
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
@@ -584,7 +623,6 @@ five_bbs_species<-rbind(lapwing_bbs_ggplot_ready, curlew_bbs_ggplot_ready, redsh
 
 # Script for creating reserve trends
 
-# Load packages ----
 
 # Load in the species data, clean it, add region and exclude species that are not part of the eight selected LWG species
 remove_list <- paste(c("Number", "NB I", "Area acquired", "Long-term", "Management agreement", "On lowland wet", "Total"), collapse = '|') # list containing sub_site names to remove
@@ -901,6 +939,10 @@ RSPBoverlap<-bbs_species%>%filter(!is.na(RSPBOverlap))%>%
 RSPBoverlap<-unique(RSPBoverlap)
 bbs_grass_species<-anti_join(bbs_grass_species, RSPBoverlap, by=("Gridref"))
 
+# Exclude grids which are not Lowland (over 250m altitude)
+
+bbs_grass_species<-bbs_grass_species%>%filter(mean_altitude<=250)
+
 # Subset any transect count above 10 to 0, as observations above 10 will not be breeding birds according to BBS waders protocol 
 
 bbs_grass_species<-bbs_grass_species%>%mutate(S1=ifelse(S1>10,0,S1),
@@ -946,25 +988,63 @@ bbs_trend_creator<-function(species_name, model_type=3, autocorrelation=TRUE, ov
   
   
   bbs_model <- trim(max_count ~ Gridref + year, data=try_checker, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
-  index_bbs<-index(bbs_model, "both")
+}
+# function that creates a wide dataframe for imputed and observed respectively
+
+imputed<-function(results) {
+  
+  results%>%
+    select(site, time, imputed)%>%
+    pivot_wider(names_from = "time",
+                values_from = "imputed")
 }
 
+observed<-function(results){
+  results%>%
+    select(site, time, observed)%>%
+    pivot_wider(names_from = "time",
+                values_from = "observed")
+}
+# create trim, index, plot, result, imputed and observed data frame
 
-
-lapwing_bbs<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
+lapwing_trim<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
+lapwing_bbs<-index(lapwing_trim, "both")
 plot(lapwing_bbs, main="Lapwing - Model 3")
+lapwing_results<-results(lapwing_trim)
+lapwing_imputed<-imputed(lapwing_results)
+lapwing_observed<-observed(lapwing_results)
 
-curlew_bbs<-bbs_trend_creator(species_name="CU", autocorrelation=FALSE, overdispersion=FALSE, model_type=3)
+
+curlew_trim<-bbs_trend_creator(species_name="CU", autocorrelation=FALSE, overdispersion=FALSE, model_type=3)
+curlew_bbs<-index(curlew_trim, "both")
 plot(curlew_bbs, main="Curlew - Model 3")
+curlew_results<-results(curlew_trim)
+curlew_imputed<-imputed(curlew_results)
+curlew_observed<-observed(curlew_results)
 
-redshank_bbs<-bbs_trend_creator(species_name="RK", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+
+redshank_trim<-bbs_trend_creator(species_name="RK", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+redshank_bbs<-index(redshank_trim, "both")
 plot(redshank_bbs, main="Redshank - Model 3")
+redshank_results<-results(redshank_trim)
+redshank_imputed<-imputed(redshank_results)
+redshank_observed<-observed(redshank_results)
 
-snipe_bbs<-bbs_trend_creator(species_name="SN", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+
+snipe_trim<-bbs_trend_creator(species_name="SN", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+snipe_bbs<-index(snipe_trim, "both")
 plot(snipe_bbs, main="Snipe - Model 3")
+snipe_results<-results(snipe_trim)
+snipe_imputed<-imputed(snipe_results)
+snipe_observed<-observed(snipe_results)
 
-yellow_wagtail_bbs<-bbs_trend_creator(species_name="YW", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+
+yellow_wagtail_trim<-bbs_trend_creator(species_name="YW", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+yellow_wagtail_bbs<-index(yellow_wagtail_trim, "both")
 plot(yellow_wagtail_bbs, main="Yellow Wagtail - Model 3")
+yellow_wagtail_results<-results(yellow_wagtail_trim)
+yellow_wagtail_imputed<-imputed(yellow_wagtail_results)
+yellow_wagtail_observed<-observed(yellow_wagtail_results)
 
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
@@ -983,13 +1063,11 @@ redshank_bbs_ggplot_ready<-plot_prepare(redshank_bbs, "Redshank")
 snipe_bbs_ggplot_ready<-plot_prepare(snipe_bbs, "Snipe")
 yellow_wagtail_bbs_ggplot_ready<-plot_prepare(yellow_wagtail_bbs, "Yellow Wagtail")
 
-# Bind the five species together and plot them with the SE as shaded outlines
-five_bbs_species<-rbind(lapwing_bbs_ggplot_ready, curlew_bbs_ggplot_ready, redshank_bbs_ggplot_ready, 
-                        snipe_bbs_ggplot_ready, yellow_wagtail_bbs_ggplot_ready)
+# Bind the three species together. Snipe and Yellow Wagtail are excluded as they don't have enough obs for modelling
+five_bbs_species<-rbind(lapwing_bbs_ggplot_ready, curlew_bbs_ggplot_ready, redshank_bbs_ggplot_ready)
 
 # Script for creating reserve trends
 
-# Load packages ----
 
 # Load in the species data, clean it, add region and exclude species that are not part of the eight selected LWG species
 remove_list <- paste(c("Number", "NB I", "Area acquired", "Long-term", "Management agreement", "On lowland wet", "Total"), collapse = '|') # list containing sub_site names to remove
