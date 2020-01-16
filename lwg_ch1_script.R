@@ -1272,7 +1272,7 @@ curlew_differences<-difference_in_trends(index_curlew, curlew_bbs, name = "Curle
 redshank_differences<-difference_in_trends(index_redshank, redshank_bbs, name = "Redshank")
 yellow_wagtail_differences<-difference_in_trends(index_yellow_wagtail, yellow_wagtail_bbs, name = "Yellow Wagtail")
 snipe_differences<-difference_in_trends(index_snipe, snipe_bbs, name = "Snipe")
-differences<-rbind(lapwing_differences, curlew_differences, redshank_differences, yellow_wagtail_differences, snipe_differences)
+differences<-rbind(lapwing_differences, curlew_differences, redshank_differences)
 
 # boxplot the index values per species by reserve vs counterfactual 
 ggplot(five_species_combined, aes( x = species, y = imputed, colour = trend))+
