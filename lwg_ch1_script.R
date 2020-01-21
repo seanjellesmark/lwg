@@ -1,4 +1,4 @@
-# In this script I will summarize all the different scripts into one so that I can 
+# Summarise all the different Ch.1 scripts into one 
 
 library(purrr)
 library(readxl)
@@ -36,8 +36,7 @@ bbs_habitat_all<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/habAll.csv"
   select(everything(), -c(Column.5, Column.21, Column.22, Column.26 ))
 
 
-# Filter for grassland - if loose then just rename bbs_habitat_all to bbs_grass_all and delete the mean altitude condition. 
-#If strict then add the part with extra PLevel & SLevel filtering conditions 
+# Filter for grassland  
 
 bbs_grass_all<-bbs_habitat_all%>%
   filter(PLevel1=="C" | SLevel1=="C")%>%
@@ -405,10 +404,64 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
   geom_line(linetype = 2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 3))+
-  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)+
+  theme(legend.position = c(0.8,0.35), legend.text = element_text(size = 30), legend.key.size = unit(3, "cm"),
+        axis.title.y=element_text(size=14,face="bold"))
 
 
 plot_five_species_combined
+
+## Welch Two Sample t-test
+t.test(index_lapwing$imputed, lapwing_bbs$imputed)
+t.test(index_redshank$imputed, redshank_bbs$imputed)
+t.test(index_snipe$imputed, snipe_bbs$imputed)
+t.test(index_yellow_wagtail$imputed, yellow_wagtail_bbs$imputed)
+t.test(index_curlew$imputed, curlew_bbs$imputed)
+
+## independent 2-group Mann-Whitney U Test
+wilcox.test(index_lapwing$imputed, lapwing_bbs$imputed)
+wilcox.test(index_redshank$imputed, redshank_bbs$imputed)
+wilcox.test(index_snipe$imputed, snipe_bbs$imputed)
+wilcox.test(index_yellow_wagtail$imputed, yellow_wagtail_bbs$imputed)
+wilcox.test(index_curlew$imputed, curlew_bbs$imputed)
+
+## Differences between trend values
+difference_in_trends<-function(index_reserve, bird_bbs, name){
+  index_reserve<-index_reserve$imputed-bird_bbs$imputed
+  a<-c(1994:2018)
+  years<-data.frame(year=a)
+  index_reserve<-cbind(index_reserve, years)
+  index_reserve<-index_reserve%>%
+    mutate(species=name)%>%
+    rename(difference=1)
+}
+
+lapwing_differences<-difference_in_trends(index_lapwing, lapwing_bbs, name = "Lapwing")
+curlew_differences<-difference_in_trends(index_curlew, curlew_bbs, name = "Curlew")
+redshank_differences<-difference_in_trends(index_redshank, redshank_bbs, name = "Redshank")
+yellow_wagtail_differences<-difference_in_trends(index_yellow_wagtail, yellow_wagtail_bbs, name = "Yellow Wagtail")
+snipe_differences<-difference_in_trends(index_snipe, snipe_bbs, name = "Snipe")
+differences<-rbind(lapwing_differences, curlew_differences, redshank_differences)
+
+# boxplot the index values per species by reserve vs counterfactual 
+ggplot(five_species_combined, aes( x = species, y = imputed, colour = trend))+
+  geom_boxplot()+theme_bw()+labs(x = "",y = "Index")
+
+## Kruskal-Wallis Test
+
+kruskal<-function(bird_species){
+  data<-five_species_combined%>%
+    filter(species==bird_species)
+  data$trend<-as.factor(data$trend)  
+  
+  kruskal.test(imputed ~ trend, data = data)
+}
+kruskal("Lapwing")
+kruskal("Curlew")
+kruskal("Yellow Wagtail")
+kruskal("Snipe")
+kruskal("Redshank")
+
 
 # Liberal counterfactual ----
 
@@ -603,7 +656,7 @@ yellow_wagtail_observed<-observed(yellow_wagtail_results)
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
 
-plot_prepare<-function(data, species_name, BBS_or_reserve="Counterfactual"){
+plot_prepare<-function(data, species_name, BBS_or_reserve="Liberal counterfactual"){
   data%>%
     mutate(se_positive=imputed+se_imp)%>%
     mutate(se_negative=imputed-se_imp)%>%
@@ -618,7 +671,7 @@ snipe_bbs_ggplot_ready<-plot_prepare(snipe_bbs, "Snipe")
 yellow_wagtail_bbs_ggplot_ready<-plot_prepare(yellow_wagtail_bbs, "Yellow Wagtail")
 
 # Bind the five species together and plot them with the SE as shaded outlines
-five_bbs_species<-rbind(lapwing_bbs_ggplot_ready, curlew_bbs_ggplot_ready, redshank_bbs_ggplot_ready, 
+five_bbs_species_liberal<-rbind(lapwing_bbs_ggplot_ready, curlew_bbs_ggplot_ready, redshank_bbs_ggplot_ready, 
                         snipe_bbs_ggplot_ready, yellow_wagtail_bbs_ggplot_ready)
 
 # Script for creating reserve trends
@@ -737,7 +790,9 @@ curlew_lwg<-lwg_reserve_species%>%
 annualcurlew<-trim(count~site+year, data=curlew_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
 index_curlew<-index(annualcurlew, "both")
 plot(index_curlew, main="Reserve Curlew - Model 3")
-
+curlew_reserve_results<-results(annualcurlew)
+curlew_reserve_imputed<-imputed(curlew_reserve_results)
+curlew_reserve_observed<-observed(curlew_reserve_results)
 
 lapwing_lwg<-lwg_reserve_species%>%
   filter(species=="Lapwing")%>%
@@ -746,6 +801,9 @@ lapwing_lwg<-lwg_reserve_species%>%
 annuallapwing<-trim(count~site+year, data=lapwing_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
 index_lapwing<-index(annuallapwing, "both")
 plot(index_lapwing, main="Reserve Lapwing - Model 3")
+lapwing_reserve_results<-results(annuallapwing)
+lapwing_reserve_imputed<-imputed(lapwing_reserve_results)
+lapwing_reserve_observed<-observed(lapwing_reserve_results)
 
 redshank_lwg<-lwg_reserve_species%>%
   filter(species=="Redshank")%>%
@@ -754,6 +812,9 @@ redshank_lwg<-lwg_reserve_species%>%
 annualredshank<-trim(count~site+year, data=redshank_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
 index_redshank<-index(annualredshank, "both")
 plot(index_redshank, main="Reserve Redshank - Model 3")
+redshank_reserve_results<-results(annualredshank)
+redshank_reserve_imputed<-imputed(redshank_reserve_results)
+redshank_reserve_observed<-observed(redshank_reserve_results)
 
 snipe_lwg<-lwg_reserve_species%>%
   filter(species=="Snipe")%>%
@@ -762,6 +823,9 @@ snipe_lwg<-lwg_reserve_species%>%
 annualsnipe<-trim(count~site+year, data=snipe_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
 index_snipe<-index(annualsnipe, "both")
 plot(index_snipe, main="Reserve Snipe - Model 3")
+snipe_reserve_results<-results(annualsnipe)
+snipe_reserve_imputed<-imputed(snipe_reserve_results)
+snipe_reserve_observed<-observed(snipe_reserve_results)
 
 yellow_wagtail_lwg<-lwg_reserve_species%>%
   filter(species=="Yellow wagtail")%>%
@@ -770,6 +834,10 @@ yellow_wagtail_lwg<-lwg_reserve_species%>%
 annualwagtail<-trim(count~site+year, data=yellow_wagtail_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
 index_yellow_wagtail<-index(annualwagtail, "both")
 plot(index_yellow_wagtail, main="Reserve Yellow Wagtail - Model 3")
+yellow_wagtail_reserve_results<-results(annualwagtail)
+yellow_wagtail_reserve_imputed<-imputed(yellow_wagtail_reserve_results)
+yellow_wagtail_reserve_observed<-observed(yellow_wagtail_reserve_results)
+
 
 # Prepare for ggplot
 lapwing_reserve_ggplot_ready<-plot_prepare(index_lapwing, "Lapwing", BBS_or_reserve = "Reserve")
@@ -784,7 +852,7 @@ five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_
 
 
 # Combine and plot reserve and bbs trends
-five_species_combined<-rbind(five_reserve_species, five_bbs_species)
+five_species_combined<-rbind(five_reserve_species, five_bbs_species_liberal)
 
 plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend)) + 
   geom_ribbon(aes(ymin=five_species_combined$se_negative, 
@@ -793,7 +861,10 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
   geom_line(linetype = 2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 3))+
-  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)+
+  theme(legend.position = c(0.8,0.35), legend.text = element_text(size = 30), legend.key.size = unit(3, "cm"),
+        axis.title.y=element_text(size=14,face="bold"))
+
 
 
 plot_five_species_combined
@@ -1048,7 +1119,7 @@ yellow_wagtail_observed<-observed(yellow_wagtail_results)
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
 
-plot_prepare<-function(data, species_name, BBS_or_reserve="Counterfactual"){
+plot_prepare<-function(data, species_name, BBS_or_reserve="Conservative counterfactual"){
   data%>%
     mutate(se_positive=imputed+se_imp)%>%
     mutate(se_negative=imputed-se_imp)%>%
@@ -1063,7 +1134,7 @@ snipe_bbs_ggplot_ready<-plot_prepare(snipe_bbs, "Snipe")
 yellow_wagtail_bbs_ggplot_ready<-plot_prepare(yellow_wagtail_bbs, "Yellow Wagtail")
 
 # Bind the three species together. Snipe and Yellow Wagtail are excluded as they don't have enough obs for modelling
-five_bbs_species<-rbind(lapwing_bbs_ggplot_ready, curlew_bbs_ggplot_ready, redshank_bbs_ggplot_ready)
+five_bbs_species_conservative<-rbind(lapwing_bbs_ggplot_ready, curlew_bbs_ggplot_ready, redshank_bbs_ggplot_ready)
 
 # Script for creating reserve trends
 
@@ -1228,7 +1299,7 @@ five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_
 
 
 # Combine and plot reserve and bbs trends
-five_species_combined<-rbind(five_reserve_species, five_bbs_species)
+five_species_combined<-rbind(five_reserve_species, five_bbs_species_conservative)
 
 plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend)) + 
   geom_ribbon(aes(ymin=five_species_combined$se_negative, 
@@ -1237,7 +1308,9 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
   geom_line(linetype = 2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 3))+
-  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)+
+  theme(legend.position = c(0.8,0.35), legend.text = element_text(size = 30), legend.key.size = unit(3, "cm"),
+        axis.title.y=element_text(size=14,face="bold"))
 
 
 plot_five_species_combined
@@ -1292,4 +1365,3 @@ kruskal("Curlew")
 kruskal("Yellow Wagtail")
 kruskal("Snipe")
 kruskal("Redshank")
-
