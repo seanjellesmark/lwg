@@ -1365,3 +1365,64 @@ kruskal("Curlew")
 kruskal("Yellow Wagtail")
 kruskal("Snipe")
 kruskal("Redshank")
+
+# Plotting the different counterfactuals vs reserve trends to illustrate the effect of covariates
+
+comparison_of_counterfactuals<-bind_rows(five_bbs_species, five_bbs_species_conservative, five_bbs_species_liberal, five_reserve_species)
+
+# First - liberal vs counterfactual
+comparison_of_counterfactuals_liberal<-comparison_of_counterfactuals%>%
+  filter(trend == "Liberal counterfactual" | trend == "Counterfactual")%>%
+  droplevels()
+
+  plot_comparison_of_counterfactuals_liberal<-comparison_of_counterfactuals_liberal%>%
+    ggplot(., aes(x=time, y=imputed, colour=trend))+ 
+  geom_ribbon(aes(ymin=comparison_of_counterfactuals_liberal$se_negative, 
+                  ymax=comparison_of_counterfactuals_liberal$se_positive), 
+              fill = "grey70", linetype=3, alpha=0.1)+ylab("Index - 1994 = 1")+xlab("Time")+
+  geom_line(linetype = 2)+
+  geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
+  theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 3))+
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)+
+  theme(legend.position = c(0.85,0.30), legend.text = element_text(size = 30), legend.key.size = unit(3, "cm"),
+        axis.title.y=element_text(size=14,face="bold"))+facet_wrap(~species, scales = "free")
+
+plot_comparison_of_counterfactuals_liberal
+
+# Then, Conservative vs counterfactual
+comparison_of_counterfactuals_conservative<-comparison_of_counterfactuals%>%
+  filter(trend == "Conservative counterfactual" | trend == "Counterfactual")%>%
+  droplevels()
+
+plot_comparison_of_counterfactuals_conservative<-comparison_of_counterfactuals_conservative%>%
+  ggplot(., aes(x=time, y=imputed, colour=trend))+ 
+  geom_ribbon(aes(ymin=comparison_of_counterfactuals_conservative$se_negative, 
+                  ymax=comparison_of_counterfactuals_conservative$se_positive), 
+              fill = "grey70", linetype=3, alpha=0.1)+ylab("Index - 1994 = 1")+xlab("Time")+
+  geom_line(linetype = 2)+
+  geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
+  theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 3))+
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)+
+  theme(legend.position = c(0.85,0.30), legend.text = element_text(size = 30), legend.key.size = unit(3, "cm"),
+        axis.title.y=element_text(size=14,face="bold"))+facet_wrap(~species, scales = "free")
+
+plot_comparison_of_counterfactuals_conservative
+
+# Third, plot the two approaches against each other
+comparison_of_counterfactuals_con_vs_lib<-comparison_of_counterfactuals%>%
+  filter(trend == "Conservative counterfactual" | trend == "Liberal counterfactual")%>%
+  droplevels()
+
+plot_comparison_of_counterfactuals_con_vs_lib<-comparison_of_counterfactuals_con_vs_lib%>%
+  ggplot(., aes(x=time, y=imputed, colour=trend))+ 
+  geom_ribbon(aes(ymin=comparison_of_counterfactuals_con_vs_lib$se_negative, 
+                  ymax=comparison_of_counterfactuals_con_vs_lib$se_positive), 
+              fill = "grey70", linetype=3, alpha=0.1)+ylab("Index - 1994 = 1")+xlab("Time")+
+  geom_line(linetype = 2)+
+  geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
+  theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 3))+
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)+
+  theme(legend.position = c(0.85,0.30), legend.text = element_text(size = 30), legend.key.size = unit(3, "cm"),
+        axis.title.y=element_text(size=14,face="bold"))+facet_wrap(~species, scales = "free")
+
+plot_comparison_of_counterfactuals_con_vs_lib
