@@ -63,3 +63,27 @@ test_results_redshank<-results(test_redshank_trim)
 # difference between the grids
 setdiff(lapwing_trim[["site_id"]], test_lapwing_trim[["site_id"]])
 setdiff(test_lapwing_trim[["site_id"]], lapwing_trim[["site_id"]])
+
+
+## Producing the excel sheet with all the bbs grids each species is present in.
+arc_gis<-bbs_grass_species%>%
+  filter(!is.na(species))%>%
+  distinct(Gridref)
+write.csv(arc_gis, "C:/Users/seanj/OneDrive - University College London/RSPB/Data/BBS_Grids_for_arcgis.csv")
+
+# read txt file with overlapping arcgis grids
+overlapping_grids<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/lwg_bbs_overlap.txt",
+                              header = TRUE, sep = ",")%>%
+  select(Gridref)
+
+# with 6 km buffer
+
+overlapping_grids_6buffer<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/buffer_6km.txt",
+header = TRUE, sep = ",")%>%
+  select(Gridref)
+
+# All reserves 
+overlapping_grids_all_reserves<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/all_reserves_bbs_overlap.txt",
+                                      header = TRUE, sep = ",")%>%
+  select(Gridref)
+

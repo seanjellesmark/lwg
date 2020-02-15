@@ -411,8 +411,8 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
 
 plot_five_species_combined
 
-ggsave(filename = "C:/Users/seanj/OneDrive/Skrivebord/Plots and graphs/UK_trends_normal.png", 
-       plot = plot_five_species_combined, width = 40, height = 20, dpi = 1000, units = "cm")
+# ggsave(filename = "C:/Users/seanj/OneDrive/Skrivebord/Plots and graphs/UK_trends_normal.png", 
+#       plot = plot_five_species_combined, width = 40, height = 20, dpi = 1000, units = "cm")
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
 t.test(index_redshank$imputed, redshank_bbs$imputed)
@@ -871,8 +871,9 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
 
 plot_five_species_combined
 
-ggsave(filename = "C:/Users/seanj/OneDrive/Skrivebord/Plots and graphs/UK_trends_liberal.tiff", 
-       plot = plot_five_species_combined, width = 42, height = 20, dpi = 1000, units = "cm")
+# ggsave(filename = "C:/Users/seanj/OneDrive/Skrivebord/Plots and graphs/UK_trends_liberal.tiff", 
+#       plot = plot_five_species_combined, width = 42, height = 20, dpi = 1000, units = "cm")
+
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
 t.test(index_redshank$imputed, redshank_bbs$imputed)
