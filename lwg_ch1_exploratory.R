@@ -68,8 +68,17 @@ setdiff(test_lapwing_trim[["site_id"]], lapwing_trim[["site_id"]])
 ## Producing the excel sheet with all the bbs grids each species is present in.
 arc_gis<-bbs_grass_species%>%
   filter(!is.na(species))%>%
-  distinct(Gridref)
+  distinct(Gridref)%>%
+  mutate(presence = 1)
 write.csv(arc_gis, "C:/Users/seanj/OneDrive - University College London/RSPB/Data/BBS_Grids_for_arcgis.csv")
+
+## Producing the excel sheet with all the bbs grids snipe is present in.
+arc_gis_snipe<-bbs_grass_species%>%
+  filter(species == "SN")%>%
+  distinct(Gridref)%>%
+  mutate(snipe_presence = 1)
+write.csv(arc_gis_snipe, "C:/Users/seanj/OneDrive - University College London/RSPB/Data/Snipe_Grids_for_arcgis.csv")
+
 
 # read txt file with overlapping arcgis grids
 overlapping_grids<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/lwg_bbs_overlap.txt",

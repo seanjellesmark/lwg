@@ -92,11 +92,11 @@ bbs_grass_species<-bbs_grass_species%>%
   select(year, Gridref, County, Country, everything())
 
 # Exclude squares overlapping with reserves
+overlapping_grids<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/lwg_bbs_overlap.txt",
+                              header = TRUE, sep = ",")%>%
+  select(Gridref)
 
-RSPBoverlap<-bbs_species%>%filter(!is.na(RSPBOverlap))%>%
-  select(Gridref, RSPBOverlap)
-RSPBoverlap<-unique(RSPBoverlap)
-bbs_grass_species<-anti_join(bbs_grass_species, RSPBoverlap, by=("Gridref"))
+bbs_grass_species<-anti_join(bbs_grass_species, overlapping_grids, by=("Gridref"))
 
 # Exclude grids which are not Lowland (over 250m altitude)
 
@@ -547,10 +547,11 @@ bbs_grass_species<-bbs_grass_species%>%
 
 # Exclude squares overlapping with reserves
 
-RSPBoverlap<-bbs_species%>%filter(!is.na(RSPBOverlap))%>%
-  select(Gridref, RSPBOverlap)
-RSPBoverlap<-unique(RSPBoverlap)
-bbs_grass_species<-anti_join(bbs_grass_species, RSPBoverlap, by=("Gridref"))
+overlapping_grids<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/lwg_bbs_overlap.txt",
+                              header = TRUE, sep = ",")%>%
+  select(Gridref)
+
+bbs_grass_species<-anti_join(bbs_grass_species, overlapping_grids, by=("Gridref"))
 
 # Subset any transect count above 10 to 0, as observations above 10 will not be breeding birds according to BBS waders protocol 
 
@@ -1009,10 +1010,11 @@ bbs_grass_species<-bbs_grass_species%>%
 
 # Exclude squares overlapping with reserves
 
-RSPBoverlap<-bbs_species%>%filter(!is.na(RSPBOverlap))%>%
-  select(Gridref, RSPBOverlap)
-RSPBoverlap<-unique(RSPBoverlap)
-bbs_grass_species<-anti_join(bbs_grass_species, RSPBoverlap, by=("Gridref"))
+overlapping_grids<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/lwg_bbs_overlap.txt",
+                              header = TRUE, sep = ",")%>%
+  select(Gridref)
+
+bbs_grass_species<-anti_join(bbs_grass_species, overlapping_grids, by=("Gridref"))
 
 # Exclude grids which are not Lowland (over 250m altitude)
 
