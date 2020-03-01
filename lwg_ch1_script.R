@@ -397,11 +397,11 @@ five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_
 # Combine and plot reserve and bbs trends
 five_species_combined<-rbind(five_reserve_species, five_bbs_species)
 
-plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend)) + 
+plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend, fill = trend)) + 
   geom_ribbon(aes(ymin=five_species_combined$se_negative, 
                   ymax=five_species_combined$se_positive), 
-              fill = "grey70", linetype=3, alpha=0.1)+ylab("Index - 1994 = 1")+xlab("Time")+
-  geom_line(linetype = 2)+
+               linetype=3, alpha=0.3)+ylab("Index - 1994 = 1")+xlab("Time")+
+  geom_line(linetype = 1, size = 1.2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
   theme(strip.text = element_text(size=20), legend.title = element_blank())+
