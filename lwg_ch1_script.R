@@ -1397,7 +1397,7 @@ plot_five_species_combined+scale_colour_viridis_d(aesthetics = c("fill", "colour
 plot_five_species_combined+scale_color_viridis_d(option = "D", begin = 0, end = 0.6, aesthetics = "colour")
 # First - liberal vs counterfactual
 comparison_of_counterfactuals_liberal<-comparison_of_counterfactuals%>%
-  filter(trend == "Liberal counterfactual" | trend == "Counterfactual")%>%
+  filter(trend == "Liberal \ncounterfactual" | trend == "Benchmark \ncounterfactual")%>%
   droplevels()
 
   plot_comparison_of_counterfactuals_liberal<-comparison_of_counterfactuals_liberal%>%
@@ -1416,7 +1416,7 @@ plot_comparison_of_counterfactuals_liberal
 
 # Then, Conservative vs counterfactual
 comparison_of_counterfactuals_conservative<-comparison_of_counterfactuals%>%
-  filter(trend == "Conservative counterfactual" | trend == "Counterfactual")%>%
+  filter(trend == "Stringent \ncounterfactual" | trend == "Benchmark \ncounterfactual")%>%
   droplevels()
 
 plot_comparison_of_counterfactuals_conservative<-comparison_of_counterfactuals_conservative%>%
@@ -1435,7 +1435,7 @@ plot_comparison_of_counterfactuals_conservative
 
 # Third, plot the two approaches against each other
 comparison_of_counterfactuals_con_vs_lib<-comparison_of_counterfactuals%>%
-  filter(trend == "Conservative counterfactual" | trend == "Liberal counterfactual")%>%
+  filter(trend == "Stringent \ncounterfactual" | trend == "Liberal counterfactual")%>%
   droplevels()
 
 plot_comparison_of_counterfactuals_con_vs_lib<-comparison_of_counterfactuals_con_vs_lib%>%
