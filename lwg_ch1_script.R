@@ -209,7 +209,7 @@ yellow_wagtail_observed<-observed(yellow_wagtail_results)
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
 
-plot_prepare<-function(data, species_name, BBS_or_reserve="Counterfactual"){
+plot_prepare<-function(data, species_name, BBS_or_reserve="Benchmark \ncounterfactual"){
   data%>%
     mutate(se_positive=imputed+se_imp)%>%
     mutate(se_negative=imputed-se_imp)%>%
@@ -397,11 +397,11 @@ five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_
 # Combine and plot reserve and bbs trends
 five_species_combined<-rbind(five_reserve_species, five_bbs_species)
 
-plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend, fill = trend)) + 
+plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend, fill = trend, linetype = trend)) + 
   geom_ribbon(aes(ymin=five_species_combined$se_negative, 
                   ymax=five_species_combined$se_positive), 
                linetype=3, alpha=0.3)+ylab("Index - 1994 = 1")+xlab("Time")+
-  geom_line(linetype = 1, size = 1.2)+
+  geom_line(size = 1.2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
   theme(strip.text = element_text(size=20), legend.title = element_blank())+
@@ -409,8 +409,8 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
         axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))
 
 
-plot_five_species_combined
-
+plot_five_species_combined+scale_color_viridis_d(option = "D", begin = 0, end = 0.6, aesthetics = c("colour","fill"))
+  # scale_color_manual(values = c("Reserve" = "cornflowerblue", "Benchmark \ncounterfactual" = "wheat3"), aesthetics = c("colour","fill"))
 # ggsave(filename = "C:/Users/seanj/OneDrive/Skrivebord/Plots and graphs/UK_trends_normal.png", 
 #       plot = plot_five_species_combined, width = 40, height = 20, dpi = 1000, units = "cm")
 ## Welch Two Sample t-test
@@ -660,7 +660,7 @@ yellow_wagtail_observed<-observed(yellow_wagtail_results)
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
 
-plot_prepare<-function(data, species_name, BBS_or_reserve="Liberal counterfactual"){
+plot_prepare<-function(data, species_name, BBS_or_reserve="Liberal \ncounterfactual"){
   data%>%
     mutate(se_positive=imputed+se_imp)%>%
     mutate(se_negative=imputed-se_imp)%>%
@@ -1126,7 +1126,7 @@ yellow_wagtail_observed<-observed(yellow_wagtail_results)
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
 
-plot_prepare<-function(data, species_name, BBS_or_reserve="Conservative counterfactual"){
+plot_prepare<-function(data, species_name, BBS_or_reserve="Stringent \ncounterfactual"){
   data%>%
     mutate(se_positive=imputed+se_imp)%>%
     mutate(se_negative=imputed-se_imp)%>%
@@ -1308,7 +1308,7 @@ five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_
 # Combine and plot reserve and bbs trends for all counterfactual combinations
 five_species_combined<-rbind(five_reserve_species, five_bbs_species_conservative)
 
-plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend)) +
+plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend, linetype = trend)) +
   ylab("Index - 1994 = 1")+xlab("Time")+
   geom_line(linetype = 2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
@@ -1320,8 +1320,8 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
 
 plot_five_species_combined
 
-ggsave(filename = "C:/Users/seanj/OneDrive/Skrivebord/Plots and graphs/UK_trends_conservative.png", 
-       plot = plot_five_species_combined, width = 42, height = 20, dpi = 1000, units = "cm")
+#ggsave(filename = "C:/Users/seanj/OneDrive/Skrivebord/Plots and graphs/UK_trends_conservative.png", 
+#       plot = plot_five_species_combined, width = 42, height = 20, dpi = 1000, units = "cm")
 
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
@@ -1380,19 +1380,21 @@ comparison_of_counterfactuals<-bind_rows(five_bbs_species, five_bbs_species_cons
 
 # Combine and plot reserve and bbs trends for all counterfactual combinations
 
-plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=time, y=imputed, colour=trend)) +
+plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=time, y=imputed, colour=trend, 
+                                                                           linetype = trend)) +
   ylab("Index - 1994 = 1")+xlab("Time")+
-  geom_line(linetype = 2)+
+  geom_line(linetype = 2, size = 0.1)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
-  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)+
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1.2)+
   theme(legend.position = c(0.85,0.3), legend.text = element_text(size = 30), legend.key.size = unit(2, "cm"),
         axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))
+  
 
 
 
-plot_five_species_combined
-
+plot_five_species_combined+scale_colour_viridis_d(aesthetics = c("fill", "colour"), option = "cividis")
+plot_five_species_combined+scale_color_viridis_d(option = "D", begin = 0, end = 0.6, aesthetics = "colour")
 # First - liberal vs counterfactual
 comparison_of_counterfactuals_liberal<-comparison_of_counterfactuals%>%
   filter(trend == "Liberal counterfactual" | trend == "Counterfactual")%>%
