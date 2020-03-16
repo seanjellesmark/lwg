@@ -406,13 +406,15 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
   theme(strip.text = element_text(size=20), legend.title = element_blank())+
   theme(legend.position = c(0.8,0.35), legend.text = element_text(size = 25), legend.key.size = unit(2, "cm"),
-        axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))
+        axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))+
+  scale_color_viridis_d(option = "D", begin = 0, end = 0.6, aesthetics = c("colour","fill"))+
+  scale_linetype_manual(values = c("Reserve" = "solid", "Benchmark \ncounterfactual" = "twodash"))
 
 
-plot_five_species_combined+scale_color_viridis_d(option = "D", begin = 0, end = 0.6, aesthetics = c("colour","fill"))
+plot_five_species_combined
   # scale_color_manual(values = c("Reserve" = "cornflowerblue", "Benchmark \ncounterfactual" = "wheat3"), aesthetics = c("colour","fill"))
-# ggsave(filename = "C:/Users/seanj/OneDrive/Skrivebord/Plots and graphs/UK_trends_normal.png", 
-#       plot = plot_five_species_combined, width = 40, height = 20, dpi = 1000, units = "cm")
+ #ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/benchmark_fig2.png", 
+  #     plot = plot_five_species_combined, width = 40, height = 20, dpi = 600, units = "cm")
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
 t.test(index_redshank$imputed, redshank_bbs$imputed)
@@ -858,16 +860,18 @@ five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_
 # Combine and plot reserve and bbs trends
 five_species_combined<-rbind(five_reserve_species, five_bbs_species_liberal)
 
-plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend)) + 
+plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend, fill = trend, linetype = trend)) + 
   geom_ribbon(aes(ymin=five_species_combined$se_negative, 
                   ymax=five_species_combined$se_positive), 
-              fill = "grey70", linetype=3, alpha=0.1)+ylab("Index - 1994 = 1")+xlab("Time")+
+              linetype=3, alpha=0.3)+ylab("Index - 1994 = 1")+xlab("Time")+
+  geom_line(size = 1.2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
-  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)+
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+
   theme(legend.position = c(0.8,0.35), legend.text = element_text(size = 25), legend.key.size = unit(2, "cm"),
-        axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))
-
+        axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))+
+  scale_color_viridis_d(option = "D", begin = 0, end = 0.6, aesthetics = c("colour","fill"))+
+  scale_linetype_manual(values = c("Reserve" = "solid", "Liberal \ncounterfactual" = "twodash"))
 
 
 plot_five_species_combined
@@ -1378,6 +1382,11 @@ kruskal("Redshank")
 
 comparison_of_counterfactuals<-bind_rows(five_bbs_species, five_bbs_species_conservative, five_bbs_species_liberal, five_reserve_species)
 
+# Change trend to factor and change order so that the ggplot legend displays it in the order listed below
+
+comparison_of_counterfactuals$trend<-as.factor(comparison_of_counterfactuals$trend)
+comparison_of_counterfactuals$trend<-factor(comparison_of_counterfactuals$trend, levels = c("Reserve", "Liberal \ncounterfactual", "Benchmark \ncounterfactual", 
+                                                                                            "Stringent \ncounterfactual"))
 # Combine and plot reserve and bbs trends for all counterfactual combinations
 
 plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=time, y=imputed, colour=trend, 
@@ -1386,15 +1395,18 @@ plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=tim
   geom_line(linetype = 2, size = 0.1)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
-  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1.2)+
-  theme(legend.position = c(0.85,0.3), legend.text = element_text(size = 30), legend.key.size = unit(2, "cm"),
-        axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1.5)+
+  theme(legend.position = c(0.85,0.25), legend.text = element_text(size = 30), legend.key.size = unit(2, "cm"),
+        axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))+scale_color_viridis_d(option = "D", begin = 0, end = 0.9, aesthetics = "colour")+
+  scale_linetype_manual(values = c("Reserve" = "solid", "Liberal \ncounterfactual" = "dashed", "Benchmark \ncounterfactual" = "twodash", 
+                                   "Stringent \ncounterfactual" = "dotted"))
   
+#ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/comparison_fig3.png", 
+#       plot = plot_five_species_combined, width = 40, height = 20, dpi = 600, units = "cm")
 
 
-
-plot_five_species_combined+scale_colour_viridis_d(aesthetics = c("fill", "colour"), option = "cividis")
-plot_five_species_combined+scale_color_viridis_d(option = "D", begin = 0, end = 0.6, aesthetics = "colour")
+# plot_five_species_combined+scale_colour_viridis_d(aesthetics = c("fill", "colour"), option = "cividis")
+plot_five_species_combined
 # First - liberal vs counterfactual
 comparison_of_counterfactuals_liberal<-comparison_of_counterfactuals%>%
   filter(trend == "Liberal \ncounterfactual" | trend == "Benchmark \ncounterfactual")%>%
