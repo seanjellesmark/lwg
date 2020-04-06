@@ -10,7 +10,7 @@ library(ggpubr)
 library(tibble)
 library(openxlsx)
 library(rtrim)
-
+## only load if necessary for SMA functions as it messes up the mutate command used in ready_plot function #  library(tidyquant)
 # Normal counterfactual ----
 
 # Breeding Bird Survey part
@@ -400,7 +400,7 @@ five_species_combined<-rbind(five_reserve_species, five_bbs_species)
 plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend, fill = trend, linetype = trend)) + 
   geom_ribbon(aes(ymin=five_species_combined$se_negative, 
                   ymax=five_species_combined$se_positive), 
-               linetype=3, alpha=0.3)+ylab("Index - 1994 = 1")+xlab("Time")+
+              linetype=3, alpha=0.3)+ylab("Index - 1994 = 1")+xlab("Time")+
   geom_line(size = 1.2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
@@ -412,9 +412,9 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
 
 
 plot_five_species_combined
-  # scale_color_manual(values = c("Reserve" = "cornflowerblue", "Benchmark \ncounterfactual" = "wheat3"), aesthetics = c("colour","fill"))
- #ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/benchmark_fig2.png", 
-  #     plot = plot_five_species_combined, width = 40, height = 20, dpi = 600, units = "cm")
+#scale_color_manual(values = c("Reserve" = "cornflowerblue", "Benchmark \ncounterfactual" = "wheat3"), aesthetics = c("colour","fill"))
+# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/benchmark_fig2_without_Ouse_washes.png", 
+#       plot = plot_five_species_combined, width = 40, height = 20, dpi = 600, units = "cm")
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
 t.test(index_redshank$imputed, redshank_bbs$imputed)
@@ -466,6 +466,23 @@ kruskal("Curlew")
 kruskal("Yellow Wagtail")
 kruskal("Snipe")
 kruskal("Redshank")
+
+
+## Checking that no sites have been lost by comparing the count in 1994 to the one we have after homogenising the data
+# Starting counts from excel: Redshank = 499. Curlew = 105. Snipe = 439. Lapwing = 714. Yellow wagtail = 6.
+
+starting_count<-lwg_reserve_species %>% 
+  group_by(species) %>% 
+  filter(year == 1994) %>% 
+  summarise(start_count = sum(count))
+
+# print all the imputed and observed datavalues to one xlsx sheet for verification -----
+# list_of_datasets <- list("redshank_observed" = redshank_reserve_observed, "redshank_imputed" = redshank_reserve_imputed,
+#                         "curlew_observed" = curlew_reserve_observed, "curlew_imputed" = curlew_reserve_imputed,
+#                         "snipe_observed" = snipe_reserve_observed, "snipe_imputed" = snipe_reserve_imputed,
+#                         "lapwing_observed" = lapwing_reserve_observed, "lapwing_imputed" = lapwing_reserve_imputed,
+#                         "yellow_wagtail_observed" = yellow_wagtail_reserve_observed, "yellow_wagtail_imputed" = yellow_wagtail_reserve_imputed)
+#write.xlsx(list_of_datasets, file = "C:/Users/seanj/OneDrive - University College London/RSPB/Data/data_tables/reserves.xlsx")
 
 
 # Liberal counterfactual ----
@@ -678,7 +695,7 @@ yellow_wagtail_bbs_ggplot_ready<-plot_prepare(yellow_wagtail_bbs, "Yellow Wagtai
 
 # Bind the five species together and plot them with the SE as shaded outlines
 five_bbs_species_liberal<-rbind(lapwing_bbs_ggplot_ready, curlew_bbs_ggplot_ready, redshank_bbs_ggplot_ready, 
-                        snipe_bbs_ggplot_ready, yellow_wagtail_bbs_ggplot_ready)
+                                snipe_bbs_ggplot_ready, yellow_wagtail_bbs_ggplot_ready)
 
 # Script for creating reserve trends
 
@@ -1312,26 +1329,28 @@ five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_
 # Combine and plot reserve and bbs trends for all counterfactual combinations
 five_species_combined<-rbind(five_reserve_species, five_bbs_species_conservative)
 
-plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend, linetype = trend)) +
+plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=time, y=imputed, colour=trend, 
+                                                                           linetype = trend)) +
   ylab("Index - 1994 = 1")+xlab("Time")+
-  geom_line(linetype = 2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
-  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1)+
-  theme(legend.position = c(0.85,0.3), legend.text = element_text(size = 30), legend.key.size = unit(2, "cm"),
-        axis.title=element_text(size=20,face="bold"))
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1.5)+
+  theme(legend.position = c(0.85,0.25), legend.text = element_text(size = 30), legend.key.size = unit(2, "cm"),
+        axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))+scale_color_viridis_d(option = "D", begin = 0, end = 0.9, aesthetics = "colour")+
+  scale_linetype_manual(values = c("Reserve" = "solid", "Liberal \ncounterfactual" = "dashed", "Benchmark \ncounterfactual" = "twodash", 
+                                   "Stringent \ncounterfactual" = "dotted"))
 
 
 plot_five_species_combined
 
-#ggsave(filename = "C:/Users/seanj/OneDrive/Skrivebord/Plots and graphs/UK_trends_conservative.png", 
-#       plot = plot_five_species_combined, width = 42, height = 20, dpi = 1000, units = "cm")
+ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/UK_trends_fig3.png", 
+       plot = plot_five_species_combined, width = 42, height = 20, dpi = 1000, units = "cm")
 
 ## Welch Two Sample t-test
-t.test(index_lapwing$imputed, lapwing_bbs$imputed)
-t.test(index_redshank$imputed, redshank_bbs$imputed)
+t.test(diff(index_lapwing$imputed), diff(lapwing_bbs$imputed))
+t.test(diff(index_redshank$imputed), diff(redshank_bbs$imputed))
 t.test(index_snipe$imputed, snipe_bbs$imputed)
-t.test(index_yellow_wagtail$imputed, yellow_wagtail_bbs$imputed)
+t.test(diff(index_yellow_wagtail$imputed), diff(yellow_wagtail_bbs$imputed))
 t.test(index_curlew$imputed, curlew_bbs$imputed)
 
 ## independent 2-group Mann-Whitney U Test
@@ -1379,7 +1398,7 @@ kruskal("Snipe")
 kruskal("Redshank")
 
 # Plotting the different counterfactuals vs reserve trends to illustrate the effect of covariates
-
+# first combine into on df
 comparison_of_counterfactuals<-bind_rows(five_bbs_species, five_bbs_species_conservative, five_bbs_species_liberal, five_reserve_species)
 
 # Change trend to factor and change order so that the ggplot legend displays it in the order listed below
@@ -1389,31 +1408,39 @@ comparison_of_counterfactuals$trend<-factor(comparison_of_counterfactuals$trend,
                                                                                             "Stringent \ncounterfactual"))
 # Combine and plot reserve and bbs trends for all counterfactual combinations
 
-plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=time, y=imputed, colour=trend, 
-                                                                           linetype = trend)) +
+plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=time, y=imputed, colour=trend, fill = trend, linetype = trend)) +
+  geom_line(size = 1.7)+
+  #geom_ribbon(aes(ymin=comparison_of_counterfactuals$se_negative, 
+  #               ymax=comparison_of_counterfactuals$se_positive), alpha = 0.3)+
+  #geom_errorbar(aes(ymin=comparison_of_counterfactuals$se_negative, 
+  #                  ymax=comparison_of_counterfactuals$se_positive), size = 1)+
   ylab("Index - 1994 = 1")+xlab("Time")+
-  geom_line(linetype = 2, size = 0.1)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
-  theme(strip.text = element_text(size=20), legend.title = element_blank())+geom_smooth(se = FALSE, size = 1.5)+
-  theme(legend.position = c(0.85,0.25), legend.text = element_text(size = 30), legend.key.size = unit(2, "cm"),
-        axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))+scale_color_viridis_d(option = "D", begin = 0, end = 0.9, aesthetics = "colour")+
+  theme(strip.text = element_text(size=20), legend.title = element_blank())+
+  theme(legend.position = c(0.85,0.25), legend.text = element_text(size = 30),legend.key.size = unit(2, "cm"),
+        axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))+
+  scale_color_viridis_d(option = "D", begin = 0.5, end = 0.9, aesthetics = c("colour", "fill")) +
   scale_linetype_manual(values = c("Reserve" = "solid", "Liberal \ncounterfactual" = "dashed", "Benchmark \ncounterfactual" = "twodash", 
                                    "Stringent \ncounterfactual" = "dotted"))
-  
-#ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/comparison_fig3.png", 
+
+plot_five_species_combined 
+
+#+geom_ma(ma_fun = SMA, n = 3, size = 1.25, linetype = "solid")  
+
+# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/comparison_ordinary_fig3.png", 
 #       plot = plot_five_species_combined, width = 40, height = 20, dpi = 600, units = "cm")
 
 
 # plot_five_species_combined+scale_colour_viridis_d(aesthetics = c("fill", "colour"), option = "cividis")
-plot_five_species_combined
+# plot_five_species_combined<-plot_five_species_combined+geom_ma(ma_fun = SMA, n = 3, size = 1.25, linetype = "solid")
 # First - liberal vs counterfactual
 comparison_of_counterfactuals_liberal<-comparison_of_counterfactuals%>%
   filter(trend == "Liberal \ncounterfactual" | trend == "Benchmark \ncounterfactual")%>%
   droplevels()
 
-  plot_comparison_of_counterfactuals_liberal<-comparison_of_counterfactuals_liberal%>%
-    ggplot(., aes(x=time, y=imputed, colour=trend))+ 
+plot_comparison_of_counterfactuals_liberal<-comparison_of_counterfactuals_liberal%>%
+  ggplot(., aes(x=time, y=imputed, colour=trend))+ 
   geom_ribbon(aes(ymin=comparison_of_counterfactuals_liberal$se_negative, 
                   ymax=comparison_of_counterfactuals_liberal$se_positive), 
               fill = "grey70", linetype=3, alpha=0.1)+ylab("Index - 1994 = 1")+xlab("Time")+
