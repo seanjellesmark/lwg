@@ -164,6 +164,17 @@ observed<-function(results){
     pivot_wider(names_from = "time",
                 values_from = "observed")
 }
+
+n_sites<-function(results, bbs_or_reserve_choice = "BBS", species_name){
+  results%>%
+    select(site, time, observed)%>%
+    filter(!is.na(observed)) %>% 
+    group_by(time) %>% 
+    summarise(n_sites = n()) %>% 
+    mutate(bbs_or_reserve = bbs_or_reserve_choice,
+           species = species_name)
+}
+
 # create trim, index, plot, result, imputed and observed data frame
 
 lapwing_trim<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
@@ -172,7 +183,7 @@ plot(lapwing_bbs, main="Lapwing - Model 3")
 lapwing_results<-results(lapwing_trim)
 lapwing_imputed<-imputed(lapwing_results)
 lapwing_observed<-observed(lapwing_results)
-
+lapwing_n<-n_sites(lapwing_results, species_name = "Lapwing")
 
 curlew_trim<-bbs_trend_creator(species_name="CU", autocorrelation=FALSE, overdispersion=FALSE, model_type=3)
 curlew_bbs<-index(curlew_trim, "both")
@@ -180,7 +191,7 @@ plot(curlew_bbs, main="Curlew - Model 3")
 curlew_results<-results(curlew_trim)
 curlew_imputed<-imputed(curlew_results)
 curlew_observed<-observed(curlew_results)
-
+curlew_n<-n_sites(curlew_results, species_name = "Curlew")
 
 redshank_trim<-bbs_trend_creator(species_name="RK", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 redshank_bbs<-index(redshank_trim, "both")
@@ -188,7 +199,7 @@ plot(redshank_bbs, main="Redshank - Model 3")
 redshank_results<-results(redshank_trim)
 redshank_imputed<-imputed(redshank_results)
 redshank_observed<-observed(redshank_results)
-
+redshank_n<-n_sites(redshank_results, species_name = "Redshank")
 
 snipe_trim<-bbs_trend_creator(species_name="SN", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 snipe_bbs<-index(snipe_trim, "both")
@@ -196,7 +207,7 @@ plot(snipe_bbs, main="Snipe - Model 3")
 snipe_results<-results(snipe_trim)
 snipe_imputed<-imputed(snipe_results)
 snipe_observed<-observed(snipe_results)
-
+snipe_n<-n_sites(snipe_results, species_name = "Snipe")
 
 yellow_wagtail_trim<-bbs_trend_creator(species_name="YW", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 yellow_wagtail_bbs<-index(yellow_wagtail_trim, "both")
@@ -204,8 +215,11 @@ plot(yellow_wagtail_bbs, main="Yellow Wagtail - Model 3")
 yellow_wagtail_results<-results(yellow_wagtail_trim)
 yellow_wagtail_imputed<-imputed(yellow_wagtail_results)
 yellow_wagtail_observed<-observed(yellow_wagtail_results)
+yellow_wagtail_n<-n_sites(yellow_wagtail_results, species_name = "Yellow wagtail")
 
-
+n_site_benchmark<-bind_rows(lapwing_n, curlew_n,redshank_n, snipe_n, yellow_wagtail_n)
+n_site_benchmark<-n_site_benchmark %>% 
+  mutate(counterfactual = "benchmark")
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
 
@@ -338,6 +352,7 @@ plot(index_curlew, main="Reserve Curlew - Model 3")
 curlew_reserve_results<-results(annualcurlew)
 curlew_reserve_imputed<-imputed(curlew_reserve_results)
 curlew_reserve_observed<-observed(curlew_reserve_results)
+curlew_reserve_n<-n_sites(curlew_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Curlew")
 
 lapwing_lwg<-lwg_reserve_species%>%
   filter(species=="Lapwing")%>%
@@ -349,6 +364,7 @@ plot(index_lapwing, main="Reserve Lapwing - Model 3")
 lapwing_reserve_results<-results(annuallapwing)
 lapwing_reserve_imputed<-imputed(lapwing_reserve_results)
 lapwing_reserve_observed<-observed(lapwing_reserve_results)
+lapwing_reserve_n<-n_sites(lapwing_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Lapwing")
 
 redshank_lwg<-lwg_reserve_species%>%
   filter(species=="Redshank")%>%
@@ -360,6 +376,7 @@ plot(index_redshank, main="Reserve Redshank - Model 3")
 redshank_reserve_results<-results(annualredshank)
 redshank_reserve_imputed<-imputed(redshank_reserve_results)
 redshank_reserve_observed<-observed(redshank_reserve_results)
+redshank_reserve_n<-n_sites(redshank_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Redshank")
 
 snipe_lwg<-lwg_reserve_species%>%
   filter(species=="Snipe")%>%
@@ -371,6 +388,7 @@ plot(index_snipe, main="Reserve Snipe - Model 3")
 snipe_reserve_results<-results(annualsnipe)
 snipe_reserve_imputed<-imputed(snipe_reserve_results)
 snipe_reserve_observed<-observed(snipe_reserve_results)
+snipe_reserve_n<-n_sites(snipe_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Snipe")
 
 yellow_wagtail_lwg<-lwg_reserve_species%>%
   filter(species=="Yellow wagtail")%>%
@@ -382,8 +400,12 @@ plot(index_yellow_wagtail, main="Reserve Yellow Wagtail - Model 3")
 yellow_wagtail_reserve_results<-results(annualwagtail)
 yellow_wagtail_reserve_imputed<-imputed(yellow_wagtail_reserve_results)
 yellow_wagtail_reserve_observed<-observed(yellow_wagtail_reserve_results)
+yellow_wagtail_reserve_n<-n_sites(yellow_wagtail_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Yellow wagtail")
 
-
+n_site_reserve<-bind_rows(curlew_reserve_n, lapwing_reserve_n, redshank_reserve_n, snipe_reserve_n, yellow_wagtail_reserve_n)
+n_site_reserve<-n_site_reserve %>% 
+  mutate(counterfactual = "reserve")
+n_sites_combined<-bind_rows(n_site_benchmark, n_site_reserve)
 # Prepare for ggplot
 lapwing_reserve_ggplot_ready<-plot_prepare(index_lapwing, "Lapwing", BBS_or_reserve = "Reserve")
 curlew_reserve_ggplot_ready<-plot_prepare(index_curlew, "Curlew", BBS_or_reserve = "Reserve")

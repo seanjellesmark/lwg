@@ -288,19 +288,7 @@ lwg_reserve_species$year<-as.integer(lwg_reserve_species$year)
 ##lwg_reserve_species<-lwg_reserve_species%>%
 #  mutate(count=count+0.1)
 
-# plotting reserve trends (I should create a function for this)
-curlew_lwg<-lwg_reserve_species%>%
-  filter(species=="Curlew")%>%
-  filter(main_site != "Ouse Washes")%>%
-  group_by(sub_site, year)%>%
-  rename(site=sub_site)
-annualcurlew<-trim(count~site+year, data=curlew_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
-index_curlew<-index(annualcurlew, "both")
-plot(index_curlew, main="Reserve Curlew - Model 3")
-curlew_reserve_results<-results(annualcurlew)
-curlew_reserve_imputed<-imputed(curlew_reserve_results)
-curlew_reserve_observed<-observed(curlew_reserve_results)
-
+# Reserve trend without Ouse Washes. Curlew not included because of no pairs
 lapwing_lwg<-lwg_reserve_species%>%
   filter(species=="Lapwing")%>%
   filter(main_site != "Ouse Washes")%>%
@@ -352,13 +340,12 @@ yellow_wagtail_reserve_observed<-observed(yellow_wagtail_reserve_results)
 
 # Prepare for ggplot
 lapwing_reserve_ggplot_ready<-plot_prepare(index_lapwing, "Lapwing", BBS_or_reserve = "Reserve")
-curlew_reserve_ggplot_ready<-plot_prepare(index_curlew, "Curlew", BBS_or_reserve = "Reserve")
 redshank_reserve_ggplot_ready<-plot_prepare(index_redshank, "Redshank", BBS_or_reserve = "Reserve")
 snipe_reserve_ggplot_ready<-plot_prepare(index_snipe, "Snipe", BBS_or_reserve = "Reserve")
-yellow_wagtail_reserve_ggplot_ready<-plot_prepare(index_yellow_wagtail, "Yellow Wagtail", BBS_or_reserve = "Reserve")
+yellow_wagtail_reserve_ggplot_ready<-plot_prepare(index_yellow_wagtail, "Yellow wagtail", BBS_or_reserve = "Reserve")
 
 # Name this one Ouse and change the name of the trend
-five_reserve_species_ouse<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_ready, redshank_reserve_ggplot_ready, 
+five_reserve_species_ouse<-rbind(lapwing_reserve_ggplot_ready, redshank_reserve_ggplot_ready, 
                                  snipe_reserve_ggplot_ready, yellow_wagtail_reserve_ggplot_ready)
 five_reserve_species_ouse<-five_reserve_species_ouse%>%
   mutate(trend = "Without Ouse Washes")
@@ -366,16 +353,6 @@ five_reserve_species_ouse<-five_reserve_species_ouse%>%
 # Create the Benchmark trend for comparison trend
 
 # plotting reserve trends (I should create a function for this)
-curlew_lwg<-lwg_reserve_species%>%
-  filter(species=="Curlew")%>%
-  group_by(sub_site, year)%>%
-  rename(site=sub_site)
-annualcurlew<-trim(count~site+year, data=curlew_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
-index_curlew<-index(annualcurlew, "both")
-plot(index_curlew, main="Reserve Curlew - Model 3")
-curlew_reserve_results<-results(annualcurlew)
-curlew_reserve_imputed<-imputed(curlew_reserve_results)
-curlew_reserve_observed<-observed(curlew_reserve_results)
 
 lapwing_lwg<-lwg_reserve_species%>%
   filter(species=="Lapwing")%>%
@@ -424,15 +401,19 @@ yellow_wagtail_reserve_observed<-observed(yellow_wagtail_reserve_results)
 
 # Prepare for ggplot
 lapwing_reserve_ggplot_ready<-plot_prepare(index_lapwing, "Lapwing", BBS_or_reserve = "Reserve")
-curlew_reserve_ggplot_ready<-plot_prepare(index_curlew, "Curlew", BBS_or_reserve = "Reserve")
 redshank_reserve_ggplot_ready<-plot_prepare(index_redshank, "Redshank", BBS_or_reserve = "Reserve")
 snipe_reserve_ggplot_ready<-plot_prepare(index_snipe, "Snipe", BBS_or_reserve = "Reserve")
-yellow_wagtail_reserve_ggplot_ready<-plot_prepare(index_yellow_wagtail, "Yellow Wagtail", BBS_or_reserve = "Reserve")
+yellow_wagtail_reserve_ggplot_ready<-plot_prepare(index_yellow_wagtail, "Yellow wagtail", BBS_or_reserve = "Reserve")
 
-five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_ready, redshank_reserve_ggplot_ready, 
+five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, redshank_reserve_ggplot_ready, 
                             snipe_reserve_ggplot_ready, yellow_wagtail_reserve_ggplot_ready)
+four_bbs_species<-five_bbs_species %>% 
+  filter(species != "Curlew")
+reserve_vs_Ouse<-rbind(five_reserve_species_ouse, five_reserve_species, four_bbs_species)
+reserve_vs_Ouse<-reserve_vs_Ouse%>%
+  rename(`Yellow wagtail`=`Yellow Wagtail`)
 
-reserve_vs_Ouse<-rbind(five_reserve_species_ouse, five_reserve_species)
+# adjust data to only include Yellow wagtail and snipe, as they are the only one's different from their normal reserve trends
 
 plot_five_species_ouse<-ggplot(data=reserve_vs_Ouse, aes(x=time, y=imputed, colour=trend, fill = trend, linetype = trend)) + 
   geom_ribbon(aes(ymin=reserve_vs_Ouse$se_negative, 
@@ -442,12 +423,18 @@ plot_five_species_ouse<-ggplot(data=reserve_vs_Ouse, aes(x=time, y=imputed, colo
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
   theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
   theme(strip.text = element_text(size=20), legend.title = element_blank())+
-  theme(legend.position = c(0.82,0.35), legend.text = element_text(size = 25), legend.key.size = unit(2, "cm"),
+  theme(legend.position = "bottom", legend.text = element_text(size = 25), legend.key.size = unit(2, "cm"),
         axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))+
   scale_color_viridis_d(option = "D", begin = 0, end = 0.6, aesthetics = c("colour","fill"))+
-  scale_linetype_manual(values = c("Reserve" = "solid", "Without Ouse Washes" = "twodash"))
+  scale_linetype_manual(values = c("Reserve" = "solid", "Without Ouse Washes" = "twodash", "Benchmark \ncounterfactual" = "dotted"))
 plot_five_species_ouse
 
- ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/without_ouse_washes.png", 
-       plot = plot_five_species_ouse, width = 40, height = 20, dpi = 600, units = "cm")
- 
+# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/without_ouse_washes.png", 
+#      plot = plot_five_species_ouse, width = 40, height = 20, dpi = 600, units = "cm")
+
+# t.test the trends with and without the Ouse Washes
+t.test(index_curlew1$imputed, index_curlew$imputed)
+t.test(index_snipe1$imputed, index_snipe$imputed) 
+t.test(index_lapwing1$imputed, index_lapwing$imputed)
+t.test(index_yellow_wagtail1$imputed, index_yellow_wagtail$imputed)
+t.test(index_redshank1$imputed, index_redshank$imputed)
