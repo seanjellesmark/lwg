@@ -438,3 +438,26 @@ t.test(index_snipe1$imputed, index_snipe$imputed)
 t.test(index_lapwing1$imputed, index_lapwing$imputed)
 t.test(index_yellow_wagtail1$imputed, index_yellow_wagtail$imputed)
 t.test(index_redshank1$imputed, index_redshank$imputed)
+
+# Count the number of observation used annually -----------------
+observed_sites<-function(results){
+  results%>%
+    select(site, time, observed)%>%
+    filter(!is.na(observed)) %>% 
+    group_by(time) %>% 
+    summarise(n_sites = n())
+}
+n_yearly_obs<-observed_sites(lapwing_results)
+
+## Check the effect of using every observation from reserves which at some point contained grassland. Here using Lapwing
+tester_lapwing<-bbs_species %>% 
+  filter(species == "L.")
+tester_lapwing <- tester_lapwing %>% 
+  mutate(count_sum = rowSums(select(., S1:S10), na.rm = TRUE))
+tester_lapwing<-tester_lapwing %>%
+  group_by(year, Gridref) %>% 
+  summarise(max_count = max(count_sum))
+
+tester_lapwing_wide<-tester_lapwing %>% 
+  pivot_wider(values_from = "max_count",
+              names_from = "year")

@@ -217,7 +217,35 @@ yellow_wagtail_imputed<-imputed(yellow_wagtail_results)
 yellow_wagtail_observed<-observed(yellow_wagtail_results)
 yellow_wagtail_n<-n_sites(yellow_wagtail_results, species_name = "Yellow wagtail")
 
-n_site_benchmark<-bind_rows(lapwing_n, curlew_n,redshank_n, snipe_n, yellow_wagtail_n)
+# species which are not added in the 5 plot figure
+shoveler_trim<-bbs_trend_creator(species_name="SV", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+shoveler_bbs<-index(shoveler_trim, "both")
+plot(shoveler_bbs, main="Shoveler - Model 3")
+shoveler_results<-results(shoveler_trim)
+shoveler_imputed<-imputed(shoveler_results)
+shoveler_observed<-observed(shoveler_results)
+shoveler_n<-n_sites(shoveler_results, species_name = "Shoveler")
+
+# not enough to impute
+garganey_trim<-bbs_trend_creator(species_name="GY", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+garganey_bbs<-index(garganey_trim, "both")
+plot(garganey_bbs, main="Garganey - Model 3")
+garganey_results<-results(garganey_trim)
+garganey_imputed<-imputed(garganey_results)
+garganey_observed<-observed(garganey_results)
+garganey_n<-n_sites(garganey_results, species_name = "Garganey")
+
+black_tailed_godwit_trim<-bbs_trend_creator(species_name="BW", model_type = 2, autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+black_tailed_godwit_bbs<-index(black_tailed_godwit_trim, "both")
+plot(black_tailed_godwit_bbs, main="Black-tailed godwit - Model 3")
+black_tailed_godwit_results<-results(black_tailed_godwit_trim)
+black_tailed_godwit_imputed<-imputed(black_tailed_godwit_results)
+black_tailed_godwit_observed<-observed(black_tailed_godwit_results)
+black_tailed_godwit_n<-n_sites(black_tailed_godwit_results, species_name = "Black-tailed godwit")
+
+
+#
+n_site_benchmark<-bind_rows(lapwing_n, curlew_n,redshank_n, snipe_n, yellow_wagtail_n, shoveler_n)
 n_site_benchmark<-n_site_benchmark %>% 
   mutate(counterfactual = "benchmark")
 # function that attaches a species name to each index series and calculates upper and lower limits 
@@ -402,21 +430,69 @@ yellow_wagtail_reserve_imputed<-imputed(yellow_wagtail_reserve_results)
 yellow_wagtail_reserve_observed<-observed(yellow_wagtail_reserve_results)
 yellow_wagtail_reserve_n<-n_sites(yellow_wagtail_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Yellow wagtail")
 
-n_site_reserve<-bind_rows(curlew_reserve_n, lapwing_reserve_n, redshank_reserve_n, snipe_reserve_n, yellow_wagtail_reserve_n)
+# Three species which are not added to the main plot
+shoveler_lwg<-lwg_reserve_species%>%
+  filter(species=="Shoveler")%>%
+  group_by(sub_site, year)%>%
+  rename(site=sub_site)
+annualshoveler<-trim(count~site+year, data=shoveler_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
+index_shoveler<-index(annualshoveler, "both")
+plot(index_shoveler, main="Reserve Shoveler - Model 3")
+shoveler_reserve_results<-results(annualshoveler)
+shoveler_reserve_imputed<-imputed(shoveler_reserve_results)
+shoveler_reserve_observed<-observed(shoveler_reserve_results)
+shoveler_reserve_n<-n_sites(shoveler_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Shoveler")
+
+garganey_lwg<-lwg_reserve_species%>%
+  filter(species=="Garganey")%>%
+  group_by(sub_site, year)%>%
+  rename(site=sub_site)
+annualgarganey<-trim(count~site+year, data=garganey_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
+index_garganey<-index(annualgarganey, "both")
+plot(index_garganey, main="Reserve Garganey - Model 3")
+garganey_reserve_results<-results(annualgarganey)
+garganey_reserve_imputed<-imputed(garganey_reserve_results)
+garganey_reserve_observed<-observed(garganey_reserve_results)
+garganey_reserve_n<-n_sites(garganey_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Garganey")
+
+black_tailed_godwit_lwg<-lwg_reserve_species%>%
+  filter(species=="Black-t godwit (limosa)")%>%
+  group_by(sub_site, year)%>%
+  rename(site=sub_site)
+annualblack_tailed_godwit<-trim(count~site+year, data=black_tailed_godwit_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
+index_black_tailed_godwit<-index(annualblack_tailed_godwit, "both")
+plot(index_black_tailed_godwit, main="Reserve Black-tailed godwit - Model 3")
+black_tailed_godwit_reserve_results<-results(annualblack_tailed_godwit)
+black_tailed_godwit_reserve_imputed<-imputed(black_tailed_godwit_reserve_results)
+black_tailed_godwit_reserve_observed<-observed(black_tailed_godwit_reserve_results)
+black_tailed_godwit_reserve_n<-n_sites(black_tailed_godwit_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Black-tailed godwit")
+
+# bind n_sites and save it as a table. Garganey and Black-tailed godwit
+n_site_reserve<-bind_rows(curlew_reserve_n, lapwing_reserve_n, redshank_reserve_n, snipe_reserve_n, yellow_wagtail_reserve_n, shoveler_reserve_n, garganey_reserve_n, black_tailed_godwit_reserve_n)
 n_site_reserve<-n_site_reserve %>% 
   mutate(counterfactual = "reserve")
 n_sites_combined<-bind_rows(n_site_benchmark, n_site_reserve)
+n_sites_wide_combined<-n_sites_combined %>% 
+  pivot_wider(names_from = "time",
+              values_from = "n_sites")
+
+# write.csv(n_sites_wide_combined,"C:/Users/seanj/OneDrive - University College London/RSPB/Data/data_tables/n_sites.csv")
 # Prepare for ggplot
 lapwing_reserve_ggplot_ready<-plot_prepare(index_lapwing, "Lapwing", BBS_or_reserve = "Reserve")
 curlew_reserve_ggplot_ready<-plot_prepare(index_curlew, "Curlew", BBS_or_reserve = "Reserve")
 redshank_reserve_ggplot_ready<-plot_prepare(index_redshank, "Redshank", BBS_or_reserve = "Reserve")
 snipe_reserve_ggplot_ready<-plot_prepare(index_snipe, "Snipe", BBS_or_reserve = "Reserve")
 yellow_wagtail_reserve_ggplot_ready<-plot_prepare(index_yellow_wagtail, "Yellow Wagtail", BBS_or_reserve = "Reserve")
+shoveler_reserve_ggplot_ready<-plot_prepare(index_shoveler, "Shoveler", BBS_or_reserve = "Reserve")
+garganey_reserve_ggplot_ready<-plot_prepare(index_garganey, "Garganey", BBS_or_reserve = "Reserve")
+black_tailed_godwit_ggplot_ready<-plot_prepare(index_black_tailed_godwit, "Black-tailed godwit", BBS_or_reserve = "Reserve")
+
 
 five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_ready, redshank_reserve_ggplot_ready, 
                             snipe_reserve_ggplot_ready, yellow_wagtail_reserve_ggplot_ready)
 
 # Combine and plot reserve and bbs trends
+
 five_species_combined<-rbind(five_reserve_species, five_bbs_species)
 
 plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend, fill = trend, linetype = trend)) + 
@@ -437,6 +513,21 @@ plot_five_species_combined
 #scale_color_manual(values = c("Reserve" = "cornflowerblue", "Benchmark \ncounterfactual" = "wheat3"), aesthetics = c("colour","fill"))
 # ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/benchmark_fig2_without_Ouse_washes.png", 
 #       plot = plot_five_species_combined, width = 40, height = 20, dpi = 600, units = "cm")
+
+# Bindrow of the three species which we do not compare - we still need the indices plot for SOM
+three_reserve_species<-bind_rows(shoveler_reserve_ggplot_ready, garganey_reserve_ggplot_ready, black_tailed_godwit_ggplot_ready)
+
+plot_three_species<-ggplot(data=three_reserve_species, aes(x=time, y=imputed)) + 
+  geom_ribbon(aes(ymin=three_reserve_species$se_negative, 
+                  ymax=three_reserve_species$se_positive), 
+              linetype=3, alpha=0.3)+ylab("Index - 1994 = 1")+xlab("Time")+
+  geom_line(size = 1.2)+
+  geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
+theme(axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20), strip.text = element_text(size=25))
+
+plot_three_species  
+ ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/fig_S1.png", 
+              plot = plot_three_species, width = 40, height = 20, dpi = 600, units = "cm")    
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
 t.test(index_redshank$imputed, redshank_bbs$imputed)
