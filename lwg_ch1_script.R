@@ -43,6 +43,15 @@ bbs_grass_all<-bbs_habitat_all%>%
   select(year, Gridref)
 bbs_grass_all<-unique(bbs_grass_all)
 
+# Alternatively, add the farmland grass grids as well - Increases N but uses obs from grass farmlands
+
+#bbs_grass_all<-bbs_habitat_all%>%
+#  filter(PLevel1=="C" | SLevel1=="C" | PLevel1=="E" & PLevel2 == 2| SLevel1=="E" & SLevel2 == 2 | PLevel1=="E" & PLevel2 == 1| SLevel1=="E" & SLevel2 == 1)%>%
+#  select(year, Gridref)
+#bbs_grass_all<-unique(bbs_grass_all)
+
+
+# This is the first filterign which did not produce accurate results. It's not correct to filter in two stages
 #bbs_grass_all<-bbs_habitat_all%>%
 #  filter(PLevel1=="C" | SLevel1=="C")
 #bbs_grass_all<-bbs_grass_all%>%filter(PLevel2==6 | SLevel2==6)%>%
@@ -526,8 +535,8 @@ plot_three_species<-ggplot(data=three_reserve_species, aes(x=time, y=imputed)) +
 theme(axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20), strip.text = element_text(size=25))
 
 plot_three_species  
- ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/fig_S1.png", 
-              plot = plot_three_species, width = 40, height = 20, dpi = 600, units = "cm")    
+# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/fig_S1.png", 
+#              plot = plot_three_species, width = 40, height = 20, dpi = 600, units = "cm")    
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
 t.test(index_redshank$imputed, redshank_bbs$imputed)
