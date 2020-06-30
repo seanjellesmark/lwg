@@ -10,7 +10,7 @@ library(ggpubr)
 library(tibble)
 library(openxlsx)
 library(rtrim)
-## only load if necessary for SMA functions as it messes up the mutate command used in ready_plot function #  library(tidyquant)
+## only load if necessary for SMA functions as it messes up the dplyr::mutate command used in ready_plot function #  library(tidyquant)
 # Normal counterfactual ----
 
 # Breeding Bird Survey part
@@ -370,7 +370,7 @@ lwg_reserve_species<-lwg_reserve_species%>%
   rename(sub_site=sub_site_uniform, main_site=main_site_uniform)%>%
   select(main_site, sub_site, everything())
 
-# set counts to integer format
+# set counts as integers
 lwg_reserve_species$count<-as.integer(lwg_reserve_species$count)
 lwg_reserve_species$year<-as.integer(lwg_reserve_species$year)
 
