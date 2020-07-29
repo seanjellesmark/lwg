@@ -10,10 +10,11 @@ library(ggpubr)
 library(tibble)
 library(openxlsx)
 library(rtrim)
+library(tidyverse)
 ## only load if necessary for SMA functions as it messes up the dplyr::mutate command used in ready_plot function #  library(tidyquant)
 # Normal counterfactual ----
 
-# Breeding Bird Survey part
+# Breeding Bird Survey part 1
 
 # Start off by loading raw BBS bird count data
 bbs_species<-read.table("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS.csv", header=TRUE, sep="\t", skip=0, comment.char="", 
@@ -84,12 +85,18 @@ bbs_grass_all<-left_join(bbs_grass_all, altitude_data, by="Gridref")
 
 
 # Merge the grid data which is used to create null values by accounting for the grids which are observed, with the species data
-# to create a full dataset containing all species values plus surveyed squares
+# to create a full dataset containing all species values plus surveyed squares - EDIT: Minor adjustments so true zeros from surveyed grids with
+# only a subset of species are kept 
 
-bbs_grass_species<-left_join(bbs_grass_all, bbs_species, by = c("year","Gridref"))
+bbs_species_full <- bbs_species %>% 
+  expand(nesting(Gridref, year), species)
+
+bbs_species_full <- left_join(bbs_species_full, bbs_species, by = c("year", "Gridref", "species"))
+
+bbs_grass_species<-left_join(bbs_grass_all, bbs_species_full, by = c("year","Gridref"))
 
 #The null values created for surveyed grids are missing county codes so these are added again
-# first by deleting the incomplete county and country and then attaching a complete version
+# first by deleting the incomplete county and country and then attaching a complete version - Yes, it looks like shit and has zero readability
 
 bbs_grass_species<-bbs_grass_species%>%
   select(everything(),-c(County, Country))
@@ -101,8 +108,7 @@ bbs_grass_species<-bbs_grass_species%>%
   select(year, Gridref, County, Country, everything())
 
 # Exclude squares overlapping with reserves
-overlapping_grids<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/lwg_bbs_overlap.txt",
-                              header = TRUE, sep = ",")%>%
+overlapping_grids<-read.csv("C:/Users/seanj/OneDrive - University College London/GIS/UK_1kmGrid_reserves_Intersect.csv") %>% 
   select(Gridref)
 
 bbs_grass_species<-anti_join(bbs_grass_species, overlapping_grids, by=("Gridref"))
@@ -113,16 +119,16 @@ bbs_grass_species<-bbs_grass_species%>%filter(mean_altitude<=250)
 
 # Subset any transect count above 10 to 0, as observations above 10 will not be breeding birds according to BBS waders protocol 
 
-bbs_grass_species<-bbs_grass_species%>%mutate(S1=ifelse(S1>10,0,S1),
-                                              S2=ifelse(S2>10,0,S2),
-                                              S3=ifelse(S3>10,0,S3),
-                                              S4=ifelse(S4>10,0,S4),
-                                              S5=ifelse(S5>10,0,S5),
-                                              S6=ifelse(S6>10,0,S6),
-                                              S7=ifelse(S7>10,0,S7),
-                                              S8=ifelse(S8>10,0,S8),
-                                              S9=ifelse(S9>10,0,S9),
-                                              S10=ifelse(S10>10,0,S10))
+#bbs_grass_species<-bbs_grass_species%>%mutate(S1=ifelse(S1>10,0,S1),
+#                                              S2=ifelse(S2>10,0,S2),
+#                                              S3=ifelse(S3>10,0,S3),
+#                                              S4=ifelse(S4>10,0,S4),
+#                                              S5=ifelse(S5>10,0,S5),
+#                                              S6=ifelse(S6>10,0,S6),
+#                                              S7=ifelse(S7>10,0,S7),
+#                                              S8=ifelse(S8>10,0,S8),
+#                                              S9=ifelse(S9>10,0,S9),
+#                                              S10=ifelse(S10>10,0,S10))
 
 # Attach country data to each square
 county_codes<-read_excel("C:/Users/seanj/OneDrive - University College London/RSPB/Data/county_codes_bbs.xlsx", sheet = "Sheet 1")
@@ -138,24 +144,31 @@ bbs_grass_species<-left_join(bbs_grass_species, county_codes, by=c("County", "Co
 
 bbs_trend_creator<-function(species_name, model_type=3, autocorrelation=TRUE, overdispersion=TRUE){
   
-  checker4<-bbs_grass_species%>%
+  grid_max <- bbs_grass_species %>% 
     filter(species==species_name | is.na(species))%>%
-    mutate(count=rowSums(select(.,S1:S10), na.rm=TRUE))%>%
-    group_by(Gridref, year, species)%>%
-    summarise(max_count=max(count))
+    pivot_longer(cols = S1:S10,
+                 names_to = "Transect",
+                 values_to = "count") %>% 
+    mutate(Transect = str_remove(Transect, "S")) %>%
+    group_by(Gridref, year, species, EarlyLate, Transect) %>% 
+    summarise(transect_count = sum(count, na.rm = TRUE)) %>% 
+    filter(transect_count < 10) %>% 
+    group_by(Gridref, year, species, EarlyLate) %>% 
+    summarise(grid_count = sum(transect_count, na.rm = TRUE)) %>% 
+    group_by(Gridref, year, species) %>% 
+    summarise(max_count = max(grid_count))
   
-  a<-c(1994:2018)
-  years<-data.frame(year=a)
+  
+  years<-data.frame(year=1994:2018)
   full_data_of_grassland<-left_join(bbs_grass_all, years , by="year")
-  aaa<-expand(full_data_of_grassland, Gridref, year)
-  aaaa<-left_join(aaa, checker4, by=c("year", "Gridref"))
+  all_grids<-expand(full_data_of_grassland, Gridref, year)
+  all_grids_1<-left_join(all_grids, grid_max, by=c("year", "Gridref"))
   
-  try_checker<-aaaa%>%
+    grid_max <- all_grids_1 %>% 
     group_by(Gridref)%>%
     filter(sum(is.na(max_count))<24)
   
-  
-  bbs_model <- trim(max_count ~ Gridref + year, data=try_checker, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
+  bbs_model <- trim(max_count ~ Gridref + year, data=grid_max, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
 }
 # function that creates a wide dataframe for imputed and observed respectively
 
@@ -532,11 +545,12 @@ plot_three_species<-ggplot(data=three_reserve_species, aes(x=time, y=imputed)) +
               linetype=3, alpha=0.3)+ylab("Index - 1994 = 1")+xlab("Time")+
   geom_line(size = 1.2)+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
+  theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
 theme(axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20), strip.text = element_text(size=25))
 
 plot_three_species  
-# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/fig_S1.png", 
-#              plot = plot_three_species, width = 40, height = 20, dpi = 600, units = "cm")    
+ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/fig_S1_white_theme.png", 
+              plot = plot_three_species, width = 40, height = 20, dpi = 600, units = "cm")    
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
 t.test(index_redshank$imputed, redshank_bbs$imputed)
@@ -569,6 +583,23 @@ yellow_wagtail_differences<-difference_in_trends(index_yellow_wagtail, yellow_wa
 snipe_differences<-difference_in_trends(index_snipe, snipe_bbs, name = "Snipe")
 differences<-rbind(lapwing_differences, curlew_differences, redshank_differences, yellow_wagtail_differences, 
                    snipe_differences)
+
+# Plotted difference between the indices
+differences %>% 
+  group_by(species) %>% 
+  mutate(slope = difference  - lag(difference, n = 1, order_by = year)) %>% 
+  ggplot(., aes(x = year, y = difference)) +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ species, scales = "free") +
+  geom_hline(yintercept = 0, linetype=2)+
+  theme_classic()+scale_x_continuous(name = "Time", limits=c(1994,2018), breaks = seq(1994,2019, by = 6))+
+  theme(axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20), strip.text = element_text(size=25))
+
+# Mean difference
+differences %>% 
+  group_by(species) %>%
+  summarise(mean_indice = mean(diff(difference)))
 
 # boxplot the index values per species by reserve vs counterfactual 
 ggplot(five_species_combined, aes( x = species, y = imputed, colour = trend))+
@@ -619,7 +650,7 @@ library(ggpubr)
 library(tibble)
 library(openxlsx)
 library(rtrim)
-
+library(tidyverse)
 # Read in BBS bird count raw data
 bbs_species<-read.table("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS.csv", header=TRUE, sep="\t", skip=0, comment.char="", 
                         check.names=FALSE, quote="", 
@@ -640,79 +671,121 @@ bbs_habitat_all<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/habAll.csv"
   rename(County=Column.4)%>%
   select(everything(), -c(Column.5, Column.21, Column.22, Column.26 ))
 
+# reduce habitat data to only grids and year as we don't need anything else when not filtering
+
+bbs_all <- bbs_habitat_all %>% 
+  select(Gridref, year) %>% 
+  distinct()
+
 # Assign bbs_habitat_all to bbs_grass all so that it uses observations from every habitat type 
-bbs_grass_all<-bbs_habitat_all
+#bbs_grass_all<-bbs_habitat_all
 
-# Add grid altitude data
-bbs_mean_altitude_uk<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS GB Mean.csv", header=TRUE)%>%
-  rename(Gridref=1)
-bbs_median_altitude_uk<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS GB Median.csv", header=TRUE)%>%
-  rename(Gridref=1)
-bbs_mean_altitude_ni<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS NI mean.csv", header=TRUE)%>%
-  rename(Gridref=1)
-bbs_median_altitude_ni<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS NI median.csv", header=TRUE)%>%
-  rename(Gridref=1)
-altitude_data_uk<-left_join(bbs_median_altitude_uk, bbs_mean_altitude_uk, by="Gridref")%>%
-  rename(mean_altitude=3)%>%
-  rename(median_altitude=2)
-altitude_data_ni<-left_join(bbs_median_altitude_ni, bbs_mean_altitude_ni, by="Gridref")%>%
-  rename(mean_altitude=3)%>%
-  rename(median_altitude=2)
-altitude_data_ni$Gridref<-as.character(altitude_data_ni$Gridref)
-for (i in 1:nrow(altitude_data_ni)){
-  altitude_data_ni$Gridref[i]<-paste("I",altitude_data_ni$Gridref[i], sep="")
-}
-altitude_data<-rbind(altitude_data_uk, altitude_data_ni)
-altitude_data_ni$Gridref<-as.factor(altitude_data_ni$Gridref)
-bbs_grass_all<-left_join(bbs_grass_all, altitude_data, by="Gridref")
+# Add grid altitude data - UPDATE we don't need to do this in the liberal analysis
+#bbs_mean_altitude_uk<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS GB Mean.csv", header=TRUE)%>%
+#  rename(Gridref=1)
+#bbs_median_altitude_uk<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS GB Median.csv", header=TRUE)%>%
+#  rename(Gridref=1)
+#bbs_mean_altitude_ni<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS NI mean.csv", header=TRUE)%>%
+#  rename(Gridref=1)
+#bbs_median_altitude_ni<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS NI median.csv", header=TRUE)%>%
+#  rename(Gridref=1)
+#altitude_data_uk<-left_join(bbs_median_altitude_uk, bbs_mean_altitude_uk, by="Gridref")%>%
+#  rename(mean_altitude=3)%>%
+#  rename(median_altitude=2)
+#altitude_data_ni<-left_join(bbs_median_altitude_ni, bbs_mean_altitude_ni, by="Gridref")%>%
+#  rename(mean_altitude=3)%>%
+#  rename(median_altitude=2)
+#altitude_data_ni$Gridref<-as.character(altitude_data_ni$Gridref)
+#for (i in 1:nrow(altitude_data_ni)){
+#  altitude_data_ni$Gridref[i]<-paste("I",altitude_data_ni$Gridref[i], sep="")
+#}
+#altitude_data<-rbind(altitude_data_uk, altitude_data_ni)
+#altitude_data_ni$Gridref<-as.factor(altitude_data_ni$Gridref)
+#bbs_grass_all<-left_join(bbs_habitat_all, altitude_data, by="Gridref")
 
 
-
+# Deselect Country, County, Day, Month and DateYear as they are in both datasets and we only need them in one of them
+#bbs_grass_all <- bbs_grass_all %>% 
+#  select(everything(), - c("Day", "Month", "DateYear", "Country", "County", "Id"))
 
 # Merge the grid data which is used to create null values by accounting for the grids which are observed, with the species data
 # to create a full dataset containing all species values plus surveyed squares
 
-bbs_grass_species<-left_join(bbs_grass_all, bbs_species, by = c("year","Gridref"))
+# bbs_all_species<-full_join(bbs_all, bbs_species, by = c("year","Gridref"))
+
+# Transform the BBS species data so each transect is a seperate row and select sum of max grid count 
+bbs_transect <- bbs_species %>% 
+  pivot_longer(cols = S1:S10,
+               names_to = "Transect",
+               values_to = "count") %>% 
+  mutate(Transect = str_remove(Transect, "S")) 
+
+bbs_transect <- bbs_transect %>% 
+  group_by(Gridref, year, species, EarlyLate, Transect) %>% 
+  summarise(transect_count = sum(count, na.rm = TRUE)) %>% 
+  filter(transect_count < 10) %>% 
+  group_by(Gridref, year, species, EarlyLate) %>% 
+  summarise(grid_count = sum(transect_count, na.rm = TRUE)) %>% 
+  group_by(Gridref, year, species) %>% 
+  summarise(max_count = max(grid_count))
+
+# Make sure that the formats are compatible
+#bbs_species_transect$Transect <- as.integer(bbs_species_transect$Transect)
+
+bbs_transect$species <- as.factor(bbs_transect$species)
+
+bbs_transect_full <- bbs_transect %>% 
+  expand(nesting(Gridref, year), species) # Note this takes a few minutes
+
+bbs_transect <- left_join(bbs_transect_full, bbs_transect, by = c("Gridref", "year", "species")) 
+
+bbs_transect <- full_join(bbs_all, bbs_transect, by = c("year", "Gridref"))
+
+# Transform NAs to true zero
+bbs_transect$max_count <- as.double(bbs_transect$max_count) 
+
+bbs_transect <- bbs_transect %>% 
+  mutate(max_count = if_else(is.na(max_count), 0, max_count))
 
 #The null values created for surveyed grids are missing county codes so these are added again
 # first by deleting the incomplete county and country and then attaching a complete version
 
-bbs_grass_species<-bbs_grass_species%>%
-  select(everything(),-c(County, Country))
-county_country<-bbs_habitat_all%>%
-  select(year, Gridref, County, Country)
-county_country<-county_country<-unique(county_country)
-bbs_grass_species<-left_join(bbs_grass_species, county_country, by=c("year", "Gridref"))
-bbs_grass_species<-bbs_grass_species%>%
-  select(year, Gridref, County, Country, everything())
+#bbs_grass_species<-bbs_grass_species%>%
+#  select(everything(),-c(County, Country))
+#county_country<-bbs_habitat_all%>%
+#  select(year, Gridref, County, Country)
+#county_country<-county_country<-unique(county_country)
+#bbs_grass_species<-left_join(bbs_grass_species, county_country, by=c("year", "Gridref"))
+#bbs_grass_species<-bbs_grass_species%>%
+#  select(year, Gridref, County, Country, everything())
 
 # Exclude squares overlapping with reserves
 
-overlapping_grids<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/lwg_bbs_overlap.txt",
-                              header = TRUE, sep = ",")%>%
+overlapping_grids<-read.csv("C:/Users/seanj/OneDrive - University College London/GIS/UK_1kmGrid_reserves_Intersect.csv") %>% 
   select(Gridref)
 
-bbs_grass_species<-anti_join(bbs_grass_species, overlapping_grids, by=("Gridref"))
+bbs_transect<-anti_join(bbs_transect, overlapping_grids, by=("Gridref"))
 
 # Subset any transect count above 10 to 0, as observations above 10 will not be breeding birds according to BBS waders protocol 
 
-bbs_grass_species<-bbs_grass_species%>%mutate(S1=ifelse(S1>10,0,S1),
-                                              S2=ifelse(S2>10,0,S2),
-                                              S3=ifelse(S3>10,0,S3),
-                                              S4=ifelse(S4>10,0,S4),
-                                              S5=ifelse(S5>10,0,S5),
-                                              S6=ifelse(S6>10,0,S6),
-                                              S7=ifelse(S7>10,0,S7),
-                                              S8=ifelse(S8>10,0,S8),
-                                              S9=ifelse(S9>10,0,S9),
-                                              S10=ifelse(S10>10,0,S10))
+#bbs_grass_species<-bbs_grass_species%>%mutate(S1=ifelse(S1>10,0,S1),
+#                                              S2=ifelse(S2>10,0,S2),
+#                                              S3=ifelse(S3>10,0,S3),
+#                                              S4=ifelse(S4>10,0,S4),
+#                                              S5=ifelse(S5>10,0,S5),
+#                                              S6=ifelse(S6>10,0,S6),
+#                                              S7=ifelse(S7>10,0,S7),
+#                                              S8=ifelse(S8>10,0,S8),
+#                                              S9=ifelse(S9>10,0,S9),
+#                                              S10=ifelse(S10>10,0,S10))
 
 # Attach country data to each square
-county_codes<-read_excel("C:/Users/seanj/OneDrive - University College London/RSPB/Data/county_codes_bbs.xlsx", sheet = "Sheet 1")
-county_codes<-county_codes%>%
-  rename(Country=COUNTY)%>%
-  rename(County=County)
-bbs_grass_species<-left_join(bbs_grass_species, county_codes, by=c("County", "Country"))
+#county_codes<-read_excel("C:/Users/seanj/OneDrive - University College London/RSPB/Data/county_codes_bbs.xlsx", sheet = "Sheet 1")
+#county_codes<-county_codes%>%
+#  rename(Country=COUNTY)%>%
+#  rename(County=County)
+#bbs_grass_species<-left_join(bbs_grass_species, county_codes, by=c("County", "Country"))
+
 
 # Function that filters the BBS data for a species, attaches that to the grid data and, summarises transects and and adds null-values
 # to zero count grids, then selects the maximum annual grid count between the late and the early survey and then calculates 
@@ -721,24 +794,14 @@ bbs_grass_species<-left_join(bbs_grass_species, county_codes, by=c("County", "Co
 
 bbs_trend_creator<-function(species_name, model_type=3, autocorrelation=TRUE, overdispersion=TRUE){
   
-  checker4<-bbs_grass_species%>%
-    filter(species==species_name | is.na(species))%>%
-    mutate(count=rowSums(select(.,S1:S10), na.rm=TRUE))%>%
-    group_by(Gridref, year, species)%>%
-    summarise(max_count=max(count))
-  
-  a<-c(1994:2018)
-  years<-data.frame(year=a)
-  full_data_of_grassland<-left_join(bbs_grass_all, years , by="year")
-  aaa<-expand(full_data_of_grassland, Gridref, year)
-  aaaa<-left_join(aaa, checker4, by=c("year", "Gridref"))
-  
-  try_checker<-aaaa%>%
+  grid_max <- bbs_transect %>% 
+    filter(species==species_name | is.na(species))
+
+  grid_max <- grid_max %>% 
     group_by(Gridref)%>%
-    filter(sum(is.na(max_count))<24)
+    filter(sum(!is.na(max_count))>1)
   
-  
-  bbs_model <- trim(max_count ~ Gridref + year, data=try_checker, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
+  bbs_model <- trim(max_count ~ Gridref + year, data=grid_max, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
 }
 # function that creates a wide dataframe for imputed and observed respectively
 
@@ -756,6 +819,16 @@ observed<-function(results){
     pivot_wider(names_from = "time",
                 values_from = "observed")
 }
+
+n_sites<-function(results, bbs_or_reserve_choice = "BBS", species_name){
+  results%>%
+    select(site, time, observed)%>%
+    filter(!is.na(observed)) %>% 
+    group_by(time) %>% 
+    summarise(n_sites = n()) %>% 
+    mutate(bbs_or_reserve = bbs_or_reserve_choice,
+           species = species_name)
+}
 # create trim, index, plot, result, imputed and observed data frame
 
 lapwing_trim<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
@@ -764,7 +837,7 @@ plot(lapwing_bbs, main="Lapwing - Model 3")
 lapwing_results<-results(lapwing_trim)
 lapwing_imputed<-imputed(lapwing_results)
 lapwing_observed<-observed(lapwing_results)
-
+lapwing_n<-n_sites(lapwing_results, species_name = "Lapwing")
 
 curlew_trim<-bbs_trend_creator(species_name="CU", autocorrelation=FALSE, overdispersion=FALSE, model_type=3)
 curlew_bbs<-index(curlew_trim, "both")
@@ -772,7 +845,7 @@ plot(curlew_bbs, main="Curlew - Model 3")
 curlew_results<-results(curlew_trim)
 curlew_imputed<-imputed(curlew_results)
 curlew_observed<-observed(curlew_results)
-
+curlew_n<-n_sites(curlew_results, species_name = "Curlew")
 
 redshank_trim<-bbs_trend_creator(species_name="RK", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 redshank_bbs<-index(redshank_trim, "both")
@@ -780,7 +853,7 @@ plot(redshank_bbs, main="Redshank - Model 3")
 redshank_results<-results(redshank_trim)
 redshank_imputed<-imputed(redshank_results)
 redshank_observed<-observed(redshank_results)
-
+redshank_n<-n_sites(redshank_results, species_name = "Redshank")
 
 snipe_trim<-bbs_trend_creator(species_name="SN", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 snipe_bbs<-index(snipe_trim, "both")
@@ -788,7 +861,7 @@ plot(snipe_bbs, main="Snipe - Model 3")
 snipe_results<-results(snipe_trim)
 snipe_imputed<-imputed(snipe_results)
 snipe_observed<-observed(snipe_results)
-
+snipe_n<-n_sites(snipe_results, species_name = "Snipe")
 
 yellow_wagtail_trim<-bbs_trend_creator(species_name="YW", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 yellow_wagtail_bbs<-index(yellow_wagtail_trim, "both")
@@ -796,7 +869,7 @@ plot(yellow_wagtail_bbs, main="Yellow Wagtail - Model 3")
 yellow_wagtail_results<-results(yellow_wagtail_trim)
 yellow_wagtail_imputed<-imputed(yellow_wagtail_results)
 yellow_wagtail_observed<-observed(yellow_wagtail_results)
-
+yellow_wagtail_n<-n_sites(yellow_wagtail_results, species_name = "Yellow wagtail")
 
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
@@ -1069,7 +1142,7 @@ kruskal("Yellow Wagtail")
 kruskal("Snipe")
 kruskal("Redshank")
 
-# Conservative counterfactual ----
+# Stringent counterfactual ----
 
 
 library(purrr)
@@ -1082,6 +1155,7 @@ library(ggpubr)
 library(tibble)
 library(openxlsx)
 library(rtrim)
+library(tidyverse)
 
 # Read in BBS bird count raw data
 bbs_species<-read.table("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/BBS.csv", header=TRUE, sep="\t", skip=0, comment.char="", 
@@ -1137,8 +1211,12 @@ bbs_grass_all<-left_join(bbs_grass_all, altitude_data, by="Gridref")
 # Merge the grid data which is used to create null values by accounting for the grids which are observed, with the species data
 # to create a full dataset containing all species values plus surveyed squares
 
-bbs_grass_species<-left_join(bbs_grass_all, bbs_species, by = c("year","Gridref"))
+bbs_species_full <- bbs_species %>% 
+  expand(nesting(Gridref, year), species)
 
+bbs_species_full <- left_join(bbs_species_full, bbs_species, by = c("year", "Gridref", "species"))
+
+bbs_grass_species<-left_join(bbs_grass_all, bbs_species_full, by = c("year","Gridref"))
 #The null values created for surveyed grids are missing county codes so these are added again
 # first by deleting the incomplete county and country and then attaching a complete version
 
@@ -1153,8 +1231,7 @@ bbs_grass_species<-bbs_grass_species%>%
 
 # Exclude squares overlapping with reserves
 
-overlapping_grids<-read.delim("C:/Users/seanj/OneDrive - University College London/GIS/lwg_bbs_overlap.txt",
-                              header = TRUE, sep = ",")%>%
+overlapping_grids<-read.csv("C:/Users/seanj/OneDrive - University College London/GIS/UK_1kmGrid_reserves_Intersect.csv") %>% 
   select(Gridref)
 
 bbs_grass_species<-anti_join(bbs_grass_species, overlapping_grids, by=("Gridref"))
@@ -1165,16 +1242,16 @@ bbs_grass_species<-bbs_grass_species%>%filter(mean_altitude<=250)
 
 # Subset any transect count above 10 to 0, as observations above 10 will not be breeding birds according to BBS waders protocol 
 
-bbs_grass_species<-bbs_grass_species%>%mutate(S1=ifelse(S1>10,0,S1),
-                                              S2=ifelse(S2>10,0,S2),
-                                              S3=ifelse(S3>10,0,S3),
-                                              S4=ifelse(S4>10,0,S4),
-                                              S5=ifelse(S5>10,0,S5),
-                                              S6=ifelse(S6>10,0,S6),
-                                              S7=ifelse(S7>10,0,S7),
-                                              S8=ifelse(S8>10,0,S8),
-                                              S9=ifelse(S9>10,0,S9),
-                                              S10=ifelse(S10>10,0,S10))
+#bbs_grass_species<-bbs_grass_species%>%mutate(S1=ifelse(S1>10,0,S1),
+#                                              S2=ifelse(S2>10,0,S2),
+#                                              S3=ifelse(S3>10,0,S3),
+#                                              S4=ifelse(S4>10,0,S4),
+#                                              S5=ifelse(S5>10,0,S5),
+#                                              S6=ifelse(S6>10,0,S6),
+#                                              S7=ifelse(S7>10,0,S7),
+#                                              S8=ifelse(S8>10,0,S8),
+#                                              S9=ifelse(S9>10,0,S9),
+#                                              S10=ifelse(S10>10,0,S10))
 
 # Attach country data to each square
 county_codes<-read_excel("C:/Users/seanj/OneDrive - University College London/RSPB/Data/county_codes_bbs.xlsx", sheet = "Sheet 1")
@@ -1190,24 +1267,31 @@ bbs_grass_species<-left_join(bbs_grass_species, county_codes, by=c("County", "Co
 
 bbs_trend_creator<-function(species_name, model_type=3, autocorrelation=TRUE, overdispersion=TRUE){
   
-  checker4<-bbs_grass_species%>%
+  grid_max <- bbs_grass_species %>% 
     filter(species==species_name | is.na(species))%>%
-    mutate(count=rowSums(select(.,S1:S10), na.rm=TRUE))%>%
-    group_by(Gridref, year, species)%>%
-    summarise(max_count=max(count))
+    pivot_longer(cols = S1:S10,
+                 names_to = "Transect",
+                 values_to = "count") %>% 
+    mutate(Transect = str_remove(Transect, "S")) %>%
+    group_by(Gridref, year, species, EarlyLate, Transect) %>% 
+    summarise(transect_count = sum(count, na.rm = TRUE)) %>% 
+    filter(transect_count < 10) %>% 
+    group_by(Gridref, year, species, EarlyLate) %>% 
+    summarise(grid_count = sum(transect_count, na.rm = TRUE)) %>% 
+    group_by(Gridref, year, species) %>% 
+    summarise(max_count = max(grid_count))
   
-  a<-c(1994:2018)
-  years<-data.frame(year=a)
+  
+  years<-data.frame(year=1994:2018)
   full_data_of_grassland<-left_join(bbs_grass_all, years , by="year")
-  aaa<-expand(full_data_of_grassland, Gridref, year)
-  aaaa<-left_join(aaa, checker4, by=c("year", "Gridref"))
+  all_grids<-expand(full_data_of_grassland, Gridref, year)
+  all_grids_1<-left_join(all_grids, grid_max, by=c("year", "Gridref"))
   
-  try_checker<-aaaa%>%
+  grid_max <- all_grids_1 %>% 
     group_by(Gridref)%>%
     filter(sum(is.na(max_count))<24)
   
-  
-  bbs_model <- trim(max_count ~ Gridref + year, data=try_checker, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
+  bbs_model <- trim(max_count ~ Gridref + year, data=grid_max, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
 }
 # function that creates a wide dataframe for imputed and observed obs respectively
 
@@ -1225,6 +1309,16 @@ observed<-function(results){
     pivot_wider(names_from = "time",
                 values_from = "observed")
 }
+
+n_sites<-function(results, bbs_or_reserve_choice = "BBS", species_name){
+  results%>%
+    select(site, time, observed)%>%
+    filter(!is.na(observed)) %>% 
+    group_by(time) %>% 
+    summarise(n_sites = n()) %>% 
+    mutate(bbs_or_reserve = bbs_or_reserve_choice,
+           species = species_name)
+}
 # create trim, index, plot, result, imputed and observed data frame
 
 lapwing_trim<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
@@ -1233,7 +1327,7 @@ plot(lapwing_bbs, main="Lapwing - Model 3")
 lapwing_results<-results(lapwing_trim)
 lapwing_imputed<-imputed(lapwing_results)
 lapwing_observed<-observed(lapwing_results)
-
+lapwing_n<-n_sites(lapwing_results, species_name = "Lapwing")
 
 curlew_trim<-bbs_trend_creator(species_name="CU", autocorrelation=FALSE, overdispersion=FALSE, model_type=3)
 curlew_bbs<-index(curlew_trim, "both")
@@ -1451,7 +1545,7 @@ five_reserve_species<-rbind(lapwing_reserve_ggplot_ready, curlew_reserve_ggplot_
 # Combine and plot reserve and bbs trends for all counterfactual combinations
 five_species_combined<-rbind(five_reserve_species, five_bbs_species_conservative)
 
-plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=time, y=imputed, colour=trend, 
+plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imputed, colour=trend, 
                                                                            linetype = trend)) +
   ylab("Index - 1994 = 1")+xlab("Time")+
   geom_hline(yintercept = 1, linetype=2)+facet_wrap(~species, scales="free")+
@@ -1465,8 +1559,8 @@ plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=tim
 
 plot_five_species_combined
 
-ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/UK_trends_fig3.png", 
-       plot = plot_five_species_combined, width = 42, height = 20, dpi = 1000, units = "cm")
+# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/UK_trends_fig3.png", 
+#       plot = plot_five_species_combined, width = 42, height = 20, dpi = 1000, units = "cm")
 
 ## Welch Two Sample t-test
 t.test(diff(index_lapwing$imputed), diff(lapwing_bbs$imputed))
