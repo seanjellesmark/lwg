@@ -11,8 +11,8 @@ library(tibble)
 library(openxlsx)
 library(rtrim)
 library(tidyverse)
-## only load if necessary for SMA functions as it messes up the dplyr::mutate command used in ready_plot function #  library(tidyquant)
-# Normal counterfactual ----
+## only load if necessary for SMA functions as it messes up the dplyr::mutate command  #  library(tidyquant)
+# Benchmark counterfactual ----
 
 # Breeding Bird Survey part 1
 
@@ -40,9 +40,22 @@ bbs_habitat_all<-read.csv("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/habAll.csv"
 # Filter for grassland  
 
 bbs_grass_all<-bbs_habitat_all%>%
-  filter(PLevel1=="C" | SLevel1=="C")%>%
+  filter(PLevel1=="C" | SLevel1=="C") %>% 
   select(year, Gridref)
 bbs_grass_all<-unique(bbs_grass_all)
+
+# Habitat composition post-matching - NOT SURE WHETHER THIS IS PROPERLY DONE YET _ UPDATE: it is not. What I really have to do is select the grid x year
+# combinations and look at the transect prop within these. Remember to do this before resub
+# habitat1 <-bbs_grass_all %>% 
+#group_by (PLevel1) %>%
+#  summarise (n=n()) %>%
+#  mutate(rel.freq = paste0(round(100 * n/sum(n), 0), "%"))
+
+
+#habitat2 <-bbs_grass_all %>% 
+#  group_by (SLevel1) %>%
+#  summarise (n=n()) %>%
+#  mutate(rel.freq = paste0(round(100 * n/sum(n), 0), "%")) 
 
 # Alternatively, add the farmland grass grids as well - Increases N but uses obs from grass farmlands
 
@@ -170,7 +183,7 @@ bbs_trend_creator<-function(species_name, model_type=3, autocorrelation=TRUE, ov
   
   bbs_model <- trim(max_count ~ Gridref + year, data=grid_max, model=model_type, serialcor = autocorrelation, overdisp = overdispersion) 
 }
-# function that creates a wide dataframe for imputed and observed respectively
+# function that creates a wide dataframe for imputed and observed respectively - easier to inspect
 
 imputed<-function(results) {
   
@@ -257,7 +270,7 @@ garganey_imputed<-imputed(garganey_results)
 garganey_observed<-observed(garganey_results)
 garganey_n<-n_sites(garganey_results, species_name = "Garganey")
 
-black_tailed_godwit_trim<-bbs_trend_creator(species_name="BW", model_type = 2, autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+black_tailed_godwit_trim<-bbs_trend_creator(species_name="BW", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 black_tailed_godwit_bbs<-index(black_tailed_godwit_trim, "both")
 plot(black_tailed_godwit_bbs, main="Black-tailed godwit - Model 3")
 black_tailed_godwit_results<-results(black_tailed_godwit_trim)
@@ -266,10 +279,30 @@ black_tailed_godwit_observed<-observed(black_tailed_godwit_results)
 black_tailed_godwit_n<-n_sites(black_tailed_godwit_results, species_name = "Black-tailed godwit")
 
 
-#
-n_site_benchmark<-bind_rows(lapwing_n, curlew_n,redshank_n, snipe_n, yellow_wagtail_n, shoveler_n)
+# Bind together. Garganey and Black-tailed godwit only work when model 2 is used
+n_site_benchmark<-bind_rows(lapwing_n, curlew_n,redshank_n, snipe_n, yellow_wagtail_n, shoveler_n, black_tailed_godwit_n, garganey_n)
 n_site_benchmark<-n_site_benchmark %>% 
   mutate(counterfactual = "benchmark")
+
+# Habitat composition
+
+hab_comp <- bind_rows(redshank_results, yellow_wagtail_results, lapwing_results, snipe_results, curlew_results)
+hab_comp1 <- hab_comp %>% 
+  filter(!is.na(observed)) %>% 
+  select(site, time) %>% 
+  distinct()
+hab_comp2 <- left_join(hab_comp1, bbs_habitat_all, by = c("site" = "Gridref", "time" = "year")) %>% 
+  mutate(grid_composition = case_when((PLevel1 == "C" | SLevel1 == "C") ~ "grassland",
+                                      (PLevel1 == "E" | SLevel1 == "E") ~ "farmland",
+                                      TRUE ~ "other"))
+
+hab_comp2$grid_composition <- as.factor(hab_comp2$grid_composition)
+
+hab_comp2 %>%
+  group_by(grid_composition) %>%
+  summarise(n = n()) %>%
+  mutate(freq = prop.table(n))
+
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
 
@@ -387,7 +420,14 @@ lwg_reserve_species<-lwg_reserve_species%>%
 lwg_reserve_species$count<-as.integer(lwg_reserve_species$count)
 lwg_reserve_species$year<-as.integer(lwg_reserve_species$year)
 
-# add 0.1 to all counts NOT DONE
+# Mean area and SD
+area<-lwg_reserve_species %>% distinct(across(c(sub_site, area_of_lwg_ha)))
+
+area %>% 
+  summarise(mean_area_ha = mean(area_of_lwg_ha, na.rm = TRUE),
+            SD_area_ha = sd(area_of_lwg_ha, na.rm = TRUE))
+
+# add 0.1 to all counts 
 ##lwg_reserve_species<-lwg_reserve_species%>%
 #  mutate(count=count+0.1)
 
@@ -430,6 +470,7 @@ redshank_reserve_n<-n_sites(redshank_reserve_results, bbs_or_reserve_choice = "R
 
 snipe_lwg<-lwg_reserve_species%>%
   filter(species=="Snipe")%>%
+  filter(main_site != "Ouse Washes") %>% 
   group_by(sub_site, year)%>%
   rename(site=sub_site)
 annualsnipe<-trim(count~site+year, data=snipe_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
@@ -489,7 +530,7 @@ black_tailed_godwit_reserve_imputed<-imputed(black_tailed_godwit_reserve_results
 black_tailed_godwit_reserve_observed<-observed(black_tailed_godwit_reserve_results)
 black_tailed_godwit_reserve_n<-n_sites(black_tailed_godwit_reserve_results, bbs_or_reserve_choice = "Reserve", species_name = "Black-tailed godwit")
 
-# bind n_sites and save it as a table. Garganey and Black-tailed godwit
+# bind n_sites and save it as a table. 
 n_site_reserve<-bind_rows(curlew_reserve_n, lapwing_reserve_n, redshank_reserve_n, snipe_reserve_n, yellow_wagtail_reserve_n, shoveler_reserve_n, garganey_reserve_n, black_tailed_godwit_reserve_n)
 n_site_reserve<-n_site_reserve %>% 
   mutate(counterfactual = "reserve")
@@ -498,7 +539,7 @@ n_sites_wide_combined<-n_sites_combined %>%
   pivot_wider(names_from = "time",
               values_from = "n_sites")
 
-# write.csv(n_sites_wide_combined,"C:/Users/seanj/OneDrive - University College London/RSPB/Data/data_tables/n_sites.csv")
+#  write.csv(n_sites_wide_combined,"C:/Users/seanj/OneDrive - University College London/RSPB/Data/data_tables/n_sites.csv")
 # Prepare for ggplot
 lapwing_reserve_ggplot_ready<-plot_prepare(index_lapwing, "Lapwing", BBS_or_reserve = "Reserve")
 curlew_reserve_ggplot_ready<-plot_prepare(index_curlew, "Curlew", BBS_or_reserve = "Reserve")
@@ -533,7 +574,7 @@ plot_five_species_combined<-ggplot(data=five_species_combined, aes(x=time, y=imp
 
 plot_five_species_combined
 #scale_color_manual(values = c("Reserve" = "cornflowerblue", "Benchmark \ncounterfactual" = "wheat3"), aesthetics = c("colour","fill"))
-# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/benchmark_fig2_without_Ouse_washes.png", 
+# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/benchmark_fig2_without_Ouse_washes_new.png", 
 #       plot = plot_five_species_combined, width = 40, height = 20, dpi = 600, units = "cm")
 
 # Bindrow of the three species which we do not compare - we still need the indices plot for SOM
@@ -549,8 +590,8 @@ plot_three_species<-ggplot(data=three_reserve_species, aes(x=time, y=imputed)) +
 theme(axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20), strip.text = element_text(size=25))
 
 plot_three_species  
-ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/fig_S1_white_theme.png", 
-              plot = plot_three_species, width = 40, height = 20, dpi = 600, units = "cm")    
+#ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/fig_S1_white_theme.png", 
+#              plot = plot_three_species, width = 40, height = 20, dpi = 600, units = "cm")    
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
 t.test(index_redshank$imputed, redshank_bbs$imputed)
@@ -599,7 +640,8 @@ differences %>%
 # Mean difference
 differences %>% 
   group_by(species) %>%
-  summarise(mean_indice = mean(diff(difference)))
+  summarise(mean_indice = mean(diff(difference)),
+            sd_indice = sd(diff(difference)))
 
 # boxplot the index values per species by reserve vs counterfactual 
 ggplot(five_species_combined, aes( x = species, y = imputed, colour = trend))+
@@ -628,6 +670,21 @@ starting_count<-lwg_reserve_species %>%
   group_by(species) %>% 
   filter(year == 1994) %>% 
   summarise(start_count = sum(count))
+
+# nr of observed counts, imputed and total for both BBS and reserve
+ # BBS
+lapwing_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+curlew_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+redshank_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+snipe_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+yellow_wagtail_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+ 
+ # Reserve
+lapwing_reserve_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+curlew_reserve_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+redshank_reserve_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+snipe_reserve_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+yellow_wagtail_reserve_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
 
 # print all the imputed and observed datavalues to one xlsx sheet for verification -----
 # list_of_datasets <- list("redshank_observed" = redshank_reserve_observed, "redshank_imputed" = redshank_reserve_imputed,
@@ -735,7 +792,7 @@ bbs_transect <- bbs_transect %>%
 bbs_transect$species <- as.factor(bbs_transect$species)
 
 bbs_transect_full <- bbs_transect %>% 
-  expand(nesting(Gridref, year), species) # Note this takes a few minutes
+  expand(nesting(Gridref, year), species) # Note that this takes a few minutes
 
 bbs_transect <- left_join(bbs_transect_full, bbs_transect, by = c("Gridref", "year", "species")) 
 
@@ -831,6 +888,7 @@ n_sites<-function(results, bbs_or_reserve_choice = "BBS", species_name){
 }
 # create trim, index, plot, result, imputed and observed data frame
 
+
 lapwing_trim<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
 lapwing_bbs<-index(lapwing_trim, "both")
 plot(lapwing_bbs, main="Lapwing - Model 3")
@@ -871,8 +929,74 @@ yellow_wagtail_imputed<-imputed(yellow_wagtail_results)
 yellow_wagtail_observed<-observed(yellow_wagtail_results)
 yellow_wagtail_n<-n_sites(yellow_wagtail_results, species_name = "Yellow wagtail")
 
+# species which are not added in the 5 plot figure
+shoveler_trim<-bbs_trend_creator(species_name="SV", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+shoveler_bbs<-index(shoveler_trim, "both")
+plot(shoveler_bbs, main="Shoveler - Model 3")
+shoveler_results<-results(shoveler_trim)
+shoveler_imputed<-imputed(shoveler_results)
+shoveler_observed<-observed(shoveler_results)
+shoveler_n<-n_sites(shoveler_results, species_name = "Shoveler")
+
+# not enough to impute
+garganey_trim<-bbs_trend_creator(species_name="GY", autocorrelation=FALSE,overdispersion=FALSE, model_type=2)
+garganey_bbs<-index(garganey_trim, "both")
+plot(garganey_bbs, main="Garganey - Model 3")
+garganey_results<-results(garganey_trim)
+garganey_imputed<-imputed(garganey_results)
+garganey_observed<-observed(garganey_results)
+garganey_n<-n_sites(garganey_results, species_name = "Garganey")
+
+# Model 2 in order to run the model
+black_tailed_godwit_trim<-bbs_trend_creator(species_name="BW", autocorrelation=FALSE,overdispersion=FALSE, model_type=2)
+black_tailed_godwit_bbs<-index(black_tailed_godwit_trim, "both")
+plot(black_tailed_godwit_bbs, main="Black-tailed godwit - Model 3")
+black_tailed_godwit_results<-results(black_tailed_godwit_trim)
+black_tailed_godwit_imputed<-imputed(black_tailed_godwit_results)
+black_tailed_godwit_observed<-observed(black_tailed_godwit_results)
+black_tailed_godwit_n<-n_sites(black_tailed_godwit_results, species_name = "Black-tailed godwit")
+
+
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
+
+# Bind together. 
+n_site_liberal<-bind_rows(lapwing_n, curlew_n,redshank_n, snipe_n, yellow_wagtail_n, shoveler_n, black_tailed_godwit_n, garganey_n)
+n_site_liberal<-n_site_liberal %>% 
+  mutate(counterfactual = "liberal")
+
+# bind n_sites and save it as a table. 
+n_site_reserve<-bind_rows(curlew_reserve_n, lapwing_reserve_n, redshank_reserve_n, snipe_reserve_n, yellow_wagtail_reserve_n, shoveler_reserve_n, garganey_reserve_n, black_tailed_godwit_reserve_n)
+n_site_reserve<-n_site_reserve %>% 
+  mutate(counterfactual = "reserve")
+n_sites_combined<-bind_rows(n_site_liberal, n_site_reserve)
+n_sites_wide_combined<-n_sites_combined %>% 
+  pivot_wider(names_from = "time",
+              values_from = "n_sites")
+
+#  write.csv(n_sites_wide_combined,"C:/Users/seanj/OneDrive - University College London/RSPB/Data/data_tables/n_sites_liberal.csv")
+#
+
+# Habitat composition
+
+hab_comp <- bind_rows(redshank_results, yellow_wagtail_results, lapwing_results, snipe_results, curlew_results)
+hab_comp1 <- hab_comp %>% 
+  filter(!is.na(observed)) %>% 
+  select(site, time) %>% 
+  distinct()
+hab_comp2 <- left_join(hab_comp1, bbs_habitat_all, by = c("site" = "Gridref", "time" = "year")) %>% 
+  mutate(grid_composition = case_when((PLevel1 == "C" | SLevel1 == "C") ~ "grassland",
+                                      (PLevel1 == "E" | SLevel1 == "E") ~ "farmland",
+                                      TRUE ~ "other"))
+
+hab_comp2$grid_composition <- as.factor(hab_comp2$grid_composition)
+
+hab_comp2 %>%
+  group_by(grid_composition) %>%
+  summarise(n = n()) %>%
+  mutate(freq = prop.table(n))
+
+# prepare for plotting
 
 plot_prepare<-function(data, species_name, BBS_or_reserve="Liberal \ncounterfactual"){
   data%>%
@@ -1036,6 +1160,7 @@ redshank_reserve_observed<-observed(redshank_reserve_results)
 
 snipe_lwg<-lwg_reserve_species%>%
   filter(species=="Snipe")%>%
+  filter(main_site != "Ouse Washes") %>% 
   group_by(sub_site, year)%>%
   rename(site=sub_site)
 annualsnipe<-trim(count~site+year, data=snipe_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
@@ -1141,6 +1266,12 @@ kruskal("Curlew")
 kruskal("Yellow Wagtail")
 kruskal("Snipe")
 kruskal("Redshank")
+
+lapwing_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+curlew_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+redshank_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+snipe_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+yellow_wagtail_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
 
 # Stringent counterfactual ----
 
@@ -1321,6 +1452,7 @@ n_sites<-function(results, bbs_or_reserve_choice = "BBS", species_name){
 }
 # create trim, index, plot, result, imputed and observed data frame
 
+
 lapwing_trim<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
 lapwing_bbs<-index(lapwing_trim, "both")
 plot(lapwing_bbs, main="Lapwing - Model 3")
@@ -1335,7 +1467,7 @@ plot(curlew_bbs, main="Curlew - Model 3")
 curlew_results<-results(curlew_trim)
 curlew_imputed<-imputed(curlew_results)
 curlew_observed<-observed(curlew_results)
-
+curlew_n<-n_sites(curlew_results, species_name = "Curlew")
 
 redshank_trim<-bbs_trend_creator(species_name="RK", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 redshank_bbs<-index(redshank_trim, "both")
@@ -1343,7 +1475,7 @@ plot(redshank_bbs, main="Redshank - Model 3")
 redshank_results<-results(redshank_trim)
 redshank_imputed<-imputed(redshank_results)
 redshank_observed<-observed(redshank_results)
-
+redshank_n<-n_sites(redshank_results, species_name = "Redshank")
 
 snipe_trim<-bbs_trend_creator(species_name="SN", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 snipe_bbs<-index(snipe_trim, "both")
@@ -1351,7 +1483,7 @@ plot(snipe_bbs, main="Snipe - Model 3")
 snipe_results<-results(snipe_trim)
 snipe_imputed<-imputed(snipe_results)
 snipe_observed<-observed(snipe_results)
-
+snipe_n<-n_sites(snipe_results, species_name = "Snipe")
 
 yellow_wagtail_trim<-bbs_trend_creator(species_name="YW", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
 yellow_wagtail_bbs<-index(yellow_wagtail_trim, "both")
@@ -1359,6 +1491,70 @@ plot(yellow_wagtail_bbs, main="Yellow Wagtail - Model 3")
 yellow_wagtail_results<-results(yellow_wagtail_trim)
 yellow_wagtail_imputed<-imputed(yellow_wagtail_results)
 yellow_wagtail_observed<-observed(yellow_wagtail_results)
+yellow_wagtail_n<-n_sites(yellow_wagtail_results, species_name = "Yellow wagtail")
+
+# species which are not added in the 5 plot figure
+shoveler_trim<-bbs_trend_creator(species_name="SV", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+shoveler_bbs<-index(shoveler_trim, "both")
+plot(shoveler_bbs, main="Shoveler - Model 3")
+shoveler_results<-results(shoveler_trim)
+shoveler_imputed<-imputed(shoveler_results)
+shoveler_observed<-observed(shoveler_results)
+shoveler_n<-n_sites(shoveler_results, species_name = "Shoveler")
+
+# not enough to impute
+garganey_trim<-bbs_trend_creator(species_name="GY", autocorrelation=FALSE,overdispersion=FALSE, model_type=2)
+garganey_bbs<-index(garganey_trim, "both")
+plot(garganey_bbs, main="Garganey - Model 3")
+garganey_results<-results(garganey_trim)
+garganey_imputed<-imputed(garganey_results)
+garganey_observed<-observed(garganey_results)
+garganey_n<-n_sites(garganey_results, species_name = "Garganey")
+
+# Model 2 in order to run the model
+black_tailed_godwit_trim<-bbs_trend_creator(species_name="BW", autocorrelation=FALSE,overdispersion=FALSE, model_type=2)
+black_tailed_godwit_bbs<-index(black_tailed_godwit_trim, "both")
+plot(black_tailed_godwit_bbs, main="Black-tailed godwit - Model 3")
+black_tailed_godwit_results<-results(black_tailed_godwit_trim)
+black_tailed_godwit_imputed<-imputed(black_tailed_godwit_results)
+black_tailed_godwit_observed<-observed(black_tailed_godwit_results)
+black_tailed_godwit_n<-n_sites(black_tailed_godwit_results, species_name = "Black-tailed godwit")
+
+
+# Bind together. 
+n_site_stringent<-bind_rows(lapwing_n, curlew_n,redshank_n, snipe_n, yellow_wagtail_n, shoveler_n, black_tailed_godwit_n, garganey_n)
+n_site_stringent<-n_site_stringent %>% 
+  mutate(counterfactual = "stringent")
+
+# bind n_sites and save it as a table. 
+n_site_reserve<-bind_rows(curlew_reserve_n, lapwing_reserve_n, redshank_reserve_n, snipe_reserve_n, yellow_wagtail_reserve_n, shoveler_reserve_n, garganey_reserve_n, black_tailed_godwit_reserve_n)
+n_site_reserve<-n_site_reserve %>% 
+  mutate(counterfactual = "reserve")
+n_sites_combined<-bind_rows(n_site_stringent, n_site_reserve)
+n_sites_wide_combined<-n_sites_combined %>% 
+  pivot_wider(names_from = "time",
+              values_from = "n_sites")
+
+#  write.csv(n_sites_wide_combined,"C:/Users/seanj/OneDrive - University College London/RSPB/Data/data_tables/n_sites_stringent.csv")
+
+# Habitat composition
+
+hab_comp <- bind_rows(redshank_results, yellow_wagtail_results, lapwing_results, snipe_results, curlew_results)
+hab_comp1 <- hab_comp %>% 
+  filter(!is.na(observed)) %>% 
+  select(site, time) %>% 
+  distinct()
+hab_comp2 <- left_join(hab_comp1, bbs_habitat_all, by = c("site" = "Gridref", "time" = "year")) %>% 
+  mutate(grid_composition = case_when((PLevel1 == "C" | SLevel1 == "C") ~ "grassland",
+                                      (PLevel1 == "E" | SLevel1 == "E") ~ "farmland",
+                                      TRUE ~ "other"))
+
+hab_comp2$grid_composition <- as.factor(hab_comp2$grid_composition)
+
+hab_comp2 %>%
+  group_by(grid_composition) %>%
+  summarise(n = n()) %>%
+  mutate(freq = prop.table(n))
 
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
@@ -1516,6 +1712,7 @@ plot(index_redshank, main="Reserve Redshank - Model 3")
 
 snipe_lwg<-lwg_reserve_species%>%
   filter(species=="Snipe")%>%
+  filter(main_site != "Ouse Washes") %>% 
   group_by(sub_site, year)%>%
   rename(site=sub_site)
 annualsnipe<-trim(count~site+year, data=snipe_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
@@ -1563,10 +1760,10 @@ plot_five_species_combined
 #       plot = plot_five_species_combined, width = 42, height = 20, dpi = 1000, units = "cm")
 
 ## Welch Two Sample t-test
-t.test(diff(index_lapwing$imputed), diff(lapwing_bbs$imputed))
-t.test(diff(index_redshank$imputed), diff(redshank_bbs$imputed))
+t.test(index_lapwing$imputed, lapwing_bbs$imputed)
+t.test(index_redshank$imputed, redshank_bbs$imputed)
 t.test(index_snipe$imputed, snipe_bbs$imputed)
-t.test(diff(index_yellow_wagtail$imputed), diff(yellow_wagtail_bbs$imputed))
+t.test(index_yellow_wagtail$imputed, yellow_wagtail_bbs$imputed)
 t.test(index_curlew$imputed, curlew_bbs$imputed)
 
 ## independent 2-group Mann-Whitney U Test
@@ -1575,6 +1772,7 @@ wilcox.test(index_redshank$imputed, redshank_bbs$imputed)
 wilcox.test(index_snipe$imputed, snipe_bbs$imputed)
 wilcox.test(index_yellow_wagtail$imputed, yellow_wagtail_bbs$imputed)
 wilcox.test(index_curlew$imputed, curlew_bbs$imputed)
+
 
 ## Differences between trend values
 difference_in_trends<-function(index_reserve, bird_bbs, name){
@@ -1613,6 +1811,13 @@ kruskal("Yellow Wagtail")
 kruskal("Snipe")
 kruskal("Redshank")
 
+# nr of observed counts
+lapwing_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+curlew_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+redshank_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+snipe_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+yellow_wagtail_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
+
 # Plotting the different counterfactuals vs reserve trends to illustrate the effect of covariates
 # first combine into on df
 comparison_of_counterfactuals<-bind_rows(five_bbs_species, five_bbs_species_conservative, five_bbs_species_liberal, five_reserve_species)
@@ -1624,8 +1829,8 @@ comparison_of_counterfactuals$trend<-factor(comparison_of_counterfactuals$trend,
                                                                                             "Stringent \ncounterfactual"))
 # Combine and plot reserve and bbs trends for all counterfactual combinations
 
-plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=time, y=imputed, colour=trend, fill = trend, linetype = trend)) +
-  geom_line(size = 1.7)+
+plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=time, y=imputed, colour=trend, fill = trend)) +
+  geom_line(size = 1.5)+
   #geom_ribbon(aes(ymin=comparison_of_counterfactuals$se_negative, 
   #               ymax=comparison_of_counterfactuals$se_positive), alpha = 0.3)+
   #geom_errorbar(aes(ymin=comparison_of_counterfactuals$se_negative, 
@@ -1636,7 +1841,7 @@ plot_five_species_combined<-ggplot(data=comparison_of_counterfactuals, aes(x=tim
   theme(strip.text = element_text(size=20), legend.title = element_blank())+
   theme(legend.position = c(0.85,0.25), legend.text = element_text(size = 30),legend.key.size = unit(2, "cm"),
         axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=20))+
-  scale_color_viridis_d(option = "D", begin = 0.5, end = 0.9, aesthetics = c("colour", "fill")) +
+  scale_color_viridis_d(option = "D", aesthetics = c("colour", "fill")) +
   scale_linetype_manual(values = c("Reserve" = "solid", "Liberal \ncounterfactual" = "dashed", "Benchmark \ncounterfactual" = "twodash", 
                                    "Stringent \ncounterfactual" = "dotted"))
 
@@ -1644,7 +1849,7 @@ plot_five_species_combined
 
 #+geom_ma(ma_fun = SMA, n = 3, size = 1.25, linetype = "solid")  
 
-# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/comparison_ordinary_fig3.png", 
+# ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/comparison_ordinary_fig3_new.png", 
 #       plot = plot_five_species_combined, width = 40, height = 20, dpi = 600, units = "cm")
 
 
