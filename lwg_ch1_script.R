@@ -330,13 +330,13 @@ remove_list <- paste(c("Number", "NB I", "Area acquired", "Long-term", "Manageme
 
 
 cleaner<-function(x) {
-  a<-read_excel("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/Malcolm_analysis.xlsx", sheet = x)
-  a<-a[rowSums(is.na(a)) != ncol(a),]
-  a<-a%>%
+  df<-read_excel("C:/Users/seanj/OneDrive/Skrivebord/R/RSPB/Malcolm_analysis.xlsx", sheet = x)
+  df<-df[rowSums(is.na(df)) != ncol(df),]
+  df<-df%>%
     rename("sub_site"=1)%>%
     filter(!grepl(remove_list, sub_site))
-  a<-gather(a, year, count, -sub_site)
-  a<-a%>%
+  df<-gather(df, year, count, -sub_site)
+  df<-df%>%
     mutate(species=x)
 }
 slavonian<-cleaner("Slavonian grebe")
@@ -426,10 +426,6 @@ area<-lwg_reserve_species %>% distinct(across(c(sub_site, area_of_lwg_ha)))
 area %>% 
   summarise(mean_area_ha = mean(area_of_lwg_ha, na.rm = TRUE),
             SD_area_ha = sd(area_of_lwg_ha, na.rm = TRUE))
-
-# add 0.1 to all counts 
-##lwg_reserve_species<-lwg_reserve_species%>%
-#  mutate(count=count+0.1)
 
 # plotting reserve trends (I should create a function for this)
 curlew_lwg<-lwg_reserve_species%>%
@@ -592,6 +588,10 @@ theme(axis.title=element_text(size=20,face="bold"), axis.text=element_text(size=
 plot_three_species  
 #ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/fig_S1_white_theme.png", 
 #              plot = plot_three_species, width = 40, height = 20, dpi = 600, units = "cm")    
+
+# Test whether indices differ between reserve and counterfactuals. All three tests give similar results (Welch t-test, Mann-Whitney/Wilcox, 
+# and Kruskal)   
+
 ## Welch Two Sample t-test
 t.test(index_lapwing$imputed, lapwing_bbs$imputed)
 t.test(index_redshank$imputed, redshank_bbs$imputed)
