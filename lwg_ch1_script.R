@@ -326,7 +326,7 @@ five_bbs_species<-rbind(lapwing_bbs_ggplot_ready, curlew_bbs_ggplot_ready, redsh
 # RSPB reserve part
 
 # Load in the species data, clean it, add region and exclude species that are not part of the eight selected LWG species
-remove_list <- paste(c("Number", "NB I", "Area acquired", "Long-term", "Management agreement", "On lowland wet", "Total"), collapse = '|') # list containing sub_site names to remove
+remove_list <- paste(c("Number", "NB I", "Area acquired", "Long-term", "Management agreement", "On lowland wet", "Total"), collapse = '|') # list containing "sub_site" names to remove
 
 
 cleaner<-function(x) {
@@ -573,7 +573,7 @@ plot_five_species_combined
 # ggsave(filename = "C:/Users/seanj/OneDrive - University College London/Plots and graphs/benchmark_fig2_without_Ouse_washes_new.png", 
 #       plot = plot_five_species_combined, width = 40, height = 20, dpi = 600, units = "cm")
 
-# Bindrow of the three species which we do not compare - we still need the indices plot for SOM
+# Bind row of the three species which we do not compare - we still need the indices plot for SOM
 three_reserve_species<-bind_rows(shoveler_reserve_ggplot_ready, garganey_reserve_ggplot_ready, black_tailed_godwit_ggplot_ready)
 
 plot_three_species<-ggplot(data=three_reserve_species, aes(x=time, y=imputed)) + 
@@ -664,14 +664,14 @@ kruskal("Redshank")
 
 
 ## Checking that no sites have been lost by comparing the count in 1994 to the one we have after homogenising the data
-# Starting counts from excel: Redshank = 499. Curlew = 105. Snipe = 439. Lapwing = 714. Yellow wagtail = 6.
+# Sum of starting counts from original excel: Redshank = 499. Curlew = 105. Snipe = 439. Lapwing = 714. Yellow wagtail = 6.
 
 starting_count<-lwg_reserve_species %>% 
   group_by(species) %>% 
   filter(year == 1994) %>% 
   summarise(start_count = sum(count))
 
-# nr of observed counts, imputed and total for both BBS and reserve
+# Nr of observed counts, imputed and total for both BBS and reserve
  # BBS
 lapwing_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
 curlew_results %>% summarise(nr_NA = sum(is.na(observed)), nr_observed = sum(!is.na(observed)), sum = n())
@@ -694,6 +694,57 @@ yellow_wagtail_reserve_results %>% summarise(nr_NA = sum(is.na(observed)), nr_ob
 #                         "yellow_wagtail_observed" = yellow_wagtail_reserve_observed, "yellow_wagtail_imputed" = yellow_wagtail_reserve_imputed)
 #write.xlsx(list_of_datasets, file = "C:/Users/seanj/OneDrive - University College London/RSPB/Data/data_tables/reserves.xlsx")
 
+# Reviewer three request that we address the potential confounding of reserve age. We do this by calculating relative annual change 
+# and plot vs age of reserve
+
+# First, exclude all reserves acquired prior to 1994.
+
+lwg_age <- lwg_reserve_species %>% 
+  filter(year_of_acquisition != "before 1994")
+
+# Select earliest year of observaiton for each site x species combination as index year
+
+lwg_age <- lwg_age %>% 
+  group_by(species, sub_site) %>% 
+  mutate(index_year = min(year))
+
+# Calculate age since first year of observation
+
+lwg_age <- lwg_age %>% 
+  mutate(years_since_acq = year - index_year)
+
+# Then calculate change in count
+
+lwg_age <- lwg_age %>% 
+  group_by(sub_site, species) %>% 
+  mutate(count_change = count - lag(count, n = 1, order_by = year))
+
+# Create index using year of acquisition as index year
+
+lwg_age <- lwg_age %>% 
+  group_by(sub_site, species) %>% 
+  mutate(count_analysis_index = count +1) %>% 
+  mutate(index = case_when(year == index_year ~ 100,
+                           year > index_year ~ ((count_analysis_index - lag(count_analysis_index, n = 1, order_by = year))/
+                                                           lag(count_analysis_index, n = 1, order_by = year))*100))
+# Gamma values along
+
+lwg_age <- lwg_age %>% 
+  group_by(sub_site, species) %>% 
+  mutate(annual_change = ((count_analysis_index - lag(count_analysis_index, n = 1, order_by = year))/
+                            lag(count_analysis_index, n = 1, order_by = year))*100)
+
+# Plot
+
+lwg_age %>% 
+  filter(species %in% c("Lapwing", "Redshank", "Yellow wagtail", "Snipe", "Curlew")) %>% 
+  ggplot(., aes(x = years_since_acq, y = annual_change)) +
+  geom_smooth(method = "loess") +
+  geom_point() +
+  theme_bw(base_size = 22) +
+  xlab("Site age") +
+  ylab("Annual change %") +
+  facet_wrap(~species, scales = "free_y")
 
 # Liberal counterfactual ----
 
