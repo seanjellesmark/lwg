@@ -11,6 +11,7 @@ library(tibble)
 library(openxlsx)
 library(rtrim)
 library(tidyverse)
+library(patchwork) # Development version
 ## only load if necessary for SMA functions as it messes up the dplyr::mutate command  #  library(tidyquant)
 # Benchmark counterfactual ----
 
@@ -736,16 +737,23 @@ lwg_age <- lwg_age %>%
 
 # Plot
 
-lwg_age %>% 
+p1 <- lwg_age %>% 
   filter(species %in% c("Lapwing", "Redshank", "Yellow wagtail", "Snipe", "Curlew")) %>% 
   ggplot(., aes(x = years_since_acq, y = annual_change)) +
   geom_smooth(method = "loess") +
   geom_point() +
-  theme_bw(base_size = 22) +
+  theme_classic(base_size = 18) +
   xlab("Site age") +
-  ylab("Annual change %") +
-  facet_wrap(~species, scales = "free_y")
+  ylab("Annual change %") # +
+#  facet_wrap(~species, scales = "free_y") # Too many figures for SOM. Sufficient with one. 
 
+ # Note that this plot requires the development version of the patchwork package.
+p2 <- p1 +
+  xlab("") +
+  ylab("") +
+  coord_cartesian(ylim = c(-100, 100), xlim = c(1, 5))
+
+p1 + inset_element(p2, 0.5, 0.5, 1, 1)
 # Liberal counterfactual ----
 
 library(purrr)
