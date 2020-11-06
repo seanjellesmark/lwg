@@ -747,6 +747,7 @@ p1 <- lwg_age %>%
   ylab("Annual change %") # +
 #  facet_wrap(~species, scales = "free_y") # Too many figures for SOM. Sufficient with one. 
 
+ # Add extra plot in right corner, as relationship is ahrd to identify in original
  # Note that this plot requires the development version of the patchwork package.
 p2 <- p1 +
   xlab("") +
