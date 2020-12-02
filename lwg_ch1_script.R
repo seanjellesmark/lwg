@@ -213,7 +213,7 @@ n_sites<-function(results, bbs_or_reserve_choice = "BBS", species_name){
 
 # create trim, index, plot, result, imputed and observed data frame
 
-lapwing_trim<-bbs_trend_creator(species_name="L.", autocorrelation=FALSE, model_type=3)
+lapwing_trim<-bbs_trend_creator(species_name="L.", model_type=3)
 lapwing_bbs<-index(lapwing_trim, "both")
 plot(lapwing_bbs, main="Lapwing - Model 3")
 lapwing_results<-results(lapwing_trim)
@@ -221,7 +221,7 @@ lapwing_imputed<-imputed(lapwing_results)
 lapwing_observed<-observed(lapwing_results)
 lapwing_n<-n_sites(lapwing_results, species_name = "Lapwing")
 
-curlew_trim<-bbs_trend_creator(species_name="CU", autocorrelation=FALSE, overdispersion=FALSE, model_type=3)
+curlew_trim<-bbs_trend_creator(species_name="CU", model_type=3)
 curlew_bbs<-index(curlew_trim, "both")
 plot(curlew_bbs, main="Curlew - Model 3")
 curlew_results<-results(curlew_trim)
@@ -229,7 +229,7 @@ curlew_imputed<-imputed(curlew_results)
 curlew_observed<-observed(curlew_results)
 curlew_n<-n_sites(curlew_results, species_name = "Curlew")
 
-redshank_trim<-bbs_trend_creator(species_name="RK", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+redshank_trim<-bbs_trend_creator(species_name="RK", model_type=3)
 redshank_bbs<-index(redshank_trim, "both")
 plot(redshank_bbs, main="Redshank - Model 3")
 redshank_results<-results(redshank_trim)
@@ -237,7 +237,7 @@ redshank_imputed<-imputed(redshank_results)
 redshank_observed<-observed(redshank_results)
 redshank_n<-n_sites(redshank_results, species_name = "Redshank")
 
-snipe_trim<-bbs_trend_creator(species_name="SN", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+snipe_trim<-bbs_trend_creator(species_name="SN", model_type=3)
 snipe_bbs<-index(snipe_trim, "both")
 plot(snipe_bbs, main="Snipe - Model 3")
 snipe_results<-results(snipe_trim)
@@ -245,7 +245,7 @@ snipe_imputed<-imputed(snipe_results)
 snipe_observed<-observed(snipe_results)
 snipe_n<-n_sites(snipe_results, species_name = "Snipe")
 
-yellow_wagtail_trim<-bbs_trend_creator(species_name="YW", autocorrelation=FALSE,overdispersion=FALSE, model_type=3)
+yellow_wagtail_trim<-bbs_trend_creator(species_name="YW", model_type=3)
 yellow_wagtail_bbs<-index(yellow_wagtail_trim, "both")
 plot(yellow_wagtail_bbs, main="Yellow Wagtail - Model 3")
 yellow_wagtail_results<-results(yellow_wagtail_trim)
@@ -293,7 +293,8 @@ hab_comp1 <- hab_comp %>%
   select(site, time) %>% 
   distinct()
 hab_comp2 <- left_join(hab_comp1, bbs_habitat_all, by = c("site" = "Gridref", "time" = "year")) %>% 
-  mutate(grid_composition = case_when((PLevel1 == "C" | SLevel1 == "C") ~ "grassland",
+  mutate(grid_composition = case_when((PLevel1 == "C" & (PLevel2  > 4 & PLevel2 < 9) | SLevel1 == "C" & (SLevel2  > 4 & SLevel2 < 9)) ~ "Wet grassland",
+                                      (PLevel1 == "C" | SLevel1 == "C") ~ "Other grassland",
                                       (PLevel1 == "E" | SLevel1 == "E") ~ "farmland",
                                       TRUE ~ "other"))
 
@@ -303,6 +304,19 @@ hab_comp2 %>%
   group_by(grid_composition) %>%
   summarise(n = n()) %>%
   mutate(freq = prop.table(n))
+
+# Dist of grassland types 
+hab_comp2 %>% 
+  filter(PLevel1 == "C" | SLevel1 == "C") %>% 
+  ggplot(., aes(x = factor(PLevel2))) + 
+  geom_bar() +
+  ggtitle("SLevel2 benchmark")
+
+hab_comp2 %>% 
+  filter(PLevel1 == "C" | SLevel1 == "C") %>% 
+  ggplot(., aes(x = factor(SLevel2))) + 
+  geom_bar() +
+  ggtitle("PLevel2 benchmark")
 
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
@@ -428,9 +442,12 @@ area %>%
   summarise(mean_area_ha = mean(area_of_lwg_ha, na.rm = TRUE),
             SD_area_ha = sd(area_of_lwg_ha, na.rm = TRUE))
 
-# plotting reserve trends (I should create a function for this)
+# plotting reserve trends. For fig. S6, just add "filter(year_of_acquisition == "before 1994") %>% 
+# filter(main_site != "Ouse Washes") %>% " after the first filter line for each species
 curlew_lwg<-lwg_reserve_species%>%
   filter(species=="Curlew")%>%
+  filter(year_of_acquisition == "before 1994") %>% 
+  filter(main_site != "Ouse Washes") %>% 
   group_by(sub_site, year)%>%
   rename(site=sub_site)
 annualcurlew<-trim(count~site+year, data=curlew_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
@@ -443,6 +460,8 @@ curlew_reserve_n<-n_sites(curlew_reserve_results, bbs_or_reserve_choice = "Reser
 
 lapwing_lwg<-lwg_reserve_species%>%
   filter(species=="Lapwing")%>%
+  filter(year_of_acquisition == "before 1994") %>% 
+  filter(main_site != "Ouse Washes") %>%
   group_by(sub_site, year)%>%
   rename(site=sub_site)
 annuallapwing<-trim(count~site+year, data=lapwing_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
@@ -455,6 +474,8 @@ lapwing_reserve_n<-n_sites(lapwing_reserve_results, bbs_or_reserve_choice = "Res
 
 redshank_lwg<-lwg_reserve_species%>%
   filter(species=="Redshank")%>%
+  filter(year_of_acquisition == "before 1994") %>% 
+  filter(main_site != "Ouse Washes") %>%
   group_by(sub_site, year)%>%
   rename(site=sub_site)
 annualredshank<-trim(count~site+year, data=redshank_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
@@ -467,6 +488,8 @@ redshank_reserve_n<-n_sites(redshank_reserve_results, bbs_or_reserve_choice = "R
 
 snipe_lwg<-lwg_reserve_species%>%
   filter(species=="Snipe")%>%
+  filter(year_of_acquisition == "before 1994") %>% 
+  filter(main_site != "Ouse Washes") %>%
   filter(main_site != "Ouse Washes") %>% 
   group_by(sub_site, year)%>%
   rename(site=sub_site)
@@ -480,6 +503,8 @@ snipe_reserve_n<-n_sites(snipe_reserve_results, bbs_or_reserve_choice = "Reserve
 
 yellow_wagtail_lwg<-lwg_reserve_species%>%
   filter(species=="Yellow wagtail")%>%
+  filter(year_of_acquisition == "before 1994") %>% 
+  filter(main_site != "Ouse Washes") %>%
   group_by(sub_site, year)%>%
   rename(site=sub_site)
 annualwagtail<-trim(count~site+year, data=yellow_wagtail_lwg, model=3, serialcor=TRUE, overdisp=TRUE)                                                                       
@@ -752,7 +777,7 @@ p1 <- lwg_age %>%
 p2 <- p1 +
   xlab("") +
   ylab("") +
-  coord_cartesian(ylim = c(-100, 100), xlim = c(1, 5))
+  coord_cartesian(ylim = c(0, 100), xlim = c(1, 15))
 
 p1 + inset_element(p2, 0.5, 0.5, 1, 1)
 # Liberal counterfactual ----
@@ -858,7 +883,7 @@ bbs_transect <- left_join(bbs_transect_full, bbs_transect, by = c("Gridref", "ye
 
 bbs_transect <- full_join(bbs_all, bbs_transect, by = c("year", "Gridref"))
 
-# Transform NAs to true zero
+# Transform NAs to true zero. We do this as grids which have been monitored but no target species observed are currently NAs
 bbs_transect$max_count <- as.double(bbs_transect$max_count) 
 
 bbs_transect <- bbs_transect %>% 
@@ -1045,7 +1070,8 @@ hab_comp1 <- hab_comp %>%
   select(site, time) %>% 
   distinct()
 hab_comp2 <- left_join(hab_comp1, bbs_habitat_all, by = c("site" = "Gridref", "time" = "year")) %>% 
-  mutate(grid_composition = case_when((PLevel1 == "C" | SLevel1 == "C") ~ "grassland",
+  mutate(grid_composition = case_when((PLevel1 == "C" & (PLevel2  > 4 & PLevel2 < 9) | SLevel1 == "C" & (SLevel2  > 4 & SLevel2 < 9)) ~ "Wet grassland",
+                                      (PLevel1 == "C" | SLevel1 == "C") ~ "Other grassland",
                                       (PLevel1 == "E" | SLevel1 == "E") ~ "farmland",
                                       TRUE ~ "other"))
 
@@ -1055,6 +1081,19 @@ hab_comp2 %>%
   group_by(grid_composition) %>%
   summarise(n = n()) %>%
   mutate(freq = prop.table(n))
+ 
+ # Plot dist 
+hab_comp2 %>% 
+  filter(PLevel1 == "C" | SLevel1 == "C") %>% 
+  ggplot(., aes(x = factor(PLevel2))) + 
+  geom_bar() +
+  ggtitle("SLevel2 liberal")
+
+hab_comp2 %>% 
+  filter(PLevel1 == "C" | SLevel1 == "C") %>% 
+  ggplot(., aes(x = factor(SLevel2))) + 
+  geom_bar() +
+  ggtitle("PLevel2 liberal")
 
 # prepare for plotting
 
@@ -1605,7 +1644,8 @@ hab_comp1 <- hab_comp %>%
   select(site, time) %>% 
   distinct()
 hab_comp2 <- left_join(hab_comp1, bbs_habitat_all, by = c("site" = "Gridref", "time" = "year")) %>% 
-  mutate(grid_composition = case_when((PLevel1 == "C" | SLevel1 == "C") ~ "grassland",
+  mutate(grid_composition = case_when((PLevel1 == "C" & (PLevel2  > 4 & PLevel2 < 9) | SLevel1 == "C" & (SLevel2  > 4 & SLevel2 < 9)) ~ "Wet grassland",
+                                      (PLevel1 == "C" | SLevel1 == "C") ~ "Other grassland",
                                       (PLevel1 == "E" | SLevel1 == "E") ~ "farmland",
                                       TRUE ~ "other"))
 
@@ -1615,6 +1655,19 @@ hab_comp2 %>%
   group_by(grid_composition) %>%
   summarise(n = n()) %>%
   mutate(freq = prop.table(n))
+
+# Dist of grassland types 
+hab_comp2 %>% 
+  filter(PLevel1 == "C" | SLevel1 == "C") %>% 
+  ggplot(., aes(x = factor(PLevel2))) + 
+  geom_bar() +
+  ggtitle("SLevel2 stringent")
+
+hab_comp2 %>% 
+  filter(PLevel1 == "C" | SLevel1 == "C") %>% 
+  ggplot(., aes(x = factor(SLevel2))) + 
+  geom_bar() +
+  ggtitle("PLevel2 stringent")
 
 # function that attaches a species name to each index series and calculates upper and lower limits 
 # in order to plot them together in ggplot 
